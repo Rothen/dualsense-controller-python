@@ -1,6 +1,6 @@
-from .hidapi_py import HidDeviceInfo, hid_enumerate, hid_free_enumeration
+from hidapi_py import hid_enumerate, hid_free_enumeration, HidDeviceInfo
 
-def enumerate(vendor_id=0, product_id=0):
+def enumerate(vendor_id: int = 0, product_id: int = 0):
     """Enumerate the HID Devices.
 
     Returns a generator that yields all of the HID devices attached to the
@@ -15,10 +15,11 @@ def enumerate(vendor_id=0, product_id=0):
     :rval:              generator(DeviceInfo)
 
     """
-    devices = []
+    devices: list[HidDeviceInfo] = []
     info = hid_enumerate(vendor_id, product_id)
-    while info:
-        devices.append(info)
+    devices.append(info)
+    while info.has_next():
         info = info.next
-    hid_free_enumeration(info)
+        devices.append(info)
+    # hid_free_enumeration(info)
     return devices

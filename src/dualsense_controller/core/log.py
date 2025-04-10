@@ -22,7 +22,7 @@ class LogLevel(enum.IntEnum):
 class Log:
     __DEFAULT_FORMATTER: Final[logging.Formatter] = logging.Formatter('[%(asctime)s - %(levelname)s] %(message)s')
 
-    __instance: Log = None
+    __instance: Log | None = None
 
     def __init__(self):
         logging.addLevelName(LogLevel.TRACE, LogLevel.TRACE.name)
@@ -31,7 +31,7 @@ class Log:
         self.__logger: logging.Logger = logging.getLogger(NAME_LOGGER)
         self.__logger.setLevel(LogLevel.INFO)
 
-        stream_handler: logging.StreamHandler = logging.StreamHandler()
+        stream_handler: logging.StreamHandler[Any] = logging.StreamHandler()
         stream_handler.formatter = self.__DEFAULT_FORMATTER
         self.__logger.addHandler(stream_handler)
 
@@ -46,15 +46,15 @@ class Log:
         cls.__get_instance().__logger.setLevel(level)
 
     @classmethod
-    def critical(cls, msg, *args: Any):
+    def critical(cls, msg: str, *args: Any):
         cls.__get_instance().__logger.critical(cls.__args_to_str(msg, *args))
 
     @classmethod
-    def fatal(cls, msg, *args: Any):
+    def fatal(cls, msg: str, *args: Any):
         cls.__get_instance().__logger.fatal(cls.__args_to_str(msg, *args))
 
     @classmethod
-    def error(cls, msg, *args: Any):
+    def error(cls, msg: str, *args: Any):
         cls.__get_instance().__logger.error(cls.__args_to_str(msg, *args))
 
     @classmethod
@@ -62,27 +62,27 @@ class Log:
         cls.__get_instance().__logger.exception(exception)
 
     @classmethod
-    def warning(cls, msg, *args: Any):
+    def warning(cls, msg: str, *args: Any):
         cls.__get_instance().__logger.warning(cls.__args_to_str(msg, *args))
 
     @classmethod
-    def info(cls, msg, *args: Any):
+    def info(cls, msg: str, *args: Any):
         cls.__get_instance().__logger.info(cls.__args_to_str(msg, *args))
 
     @classmethod
-    def verbose(cls, msg, *args: Any):
+    def verbose(cls, msg: str, *args: Any):
         cls.__get_instance().__logger.log(LogLevel.VERBOSE, cls.__args_to_str(msg, *args))
 
     @classmethod
-    def debug(cls, msg, *args: Any):
+    def debug(cls, msg: str, *args: Any):
         cls.__get_instance().__logger.debug(cls.__args_to_str(msg, *args))
 
     @classmethod
-    def trace(cls, msg, *args: Any):
+    def trace(cls, msg: str, *args: Any):
         cls.__get_instance().__logger.log(LogLevel.TRACE, cls.__args_to_str(msg, *args))
 
     @classmethod
-    def __args_to_str(cls, msg, *args: Any) -> str:
+    def __args_to_str(cls, msg: str, *args: Any) -> str:
         args_as_str: Iterable[str] = map(lambda arg: str(arg), args)
         msg = str(msg)
         msg = f'{msg}, ' if len(args) else msg

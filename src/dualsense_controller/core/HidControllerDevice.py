@@ -35,19 +35,22 @@ class HidControllerDevice:
         return self._connection_type
 
     @property
-    def out_report(self) -> OutReport:
+    def out_report(self) -> OutReport | None:
         return self._out_report_lockable.value
 
     @property
     def is_opened(self) -> bool:
-        return self._hid_device is not None
+        return self._hid_device.is_opened()
 
-    def __init__(self, device_index_or_device_info: int | HidDeviceInfo = 0):
+    def __init__(self, device_index_or_device_info: int | HidDeviceInfo | None = 0):
         self._connection_type: ConnectionType = ConnectionType.UNDEFINED
         self._event_emitter: Final[pyee.EventEmitter] = pyee.EventEmitter()
-        self._loop_thread: Thread | None = None
-        self._stop_thread_event: threading.Event | None = None
-        self._thread_started_event: threading.Event | None = None
+        self._loop_thread = Thread(
+            target=self._loop,
+            daemon=True,
+        )
+        self._stop_thread_event: threading.Event = threading.Event()
+        self._thread_started_event: threading.Event = threading.Event()
 
         device_info: HidDeviceInfo
         if device_index_or_device_info is None or isinstance(device_index_or_device_info, int):
@@ -62,25 +65,26 @@ class HidControllerDevice:
 
         self._serial_number: Final[str] = device_info.serial_number
         self._path: Final[str] = device_info.path
-        self._hid_device: HidDevice | None = None
+        self._hid_device: HidDevice = HidDevice(path=self._path)
 
-        self._in_report_length: InReportLength = InReportLength.DUMMY
+        self._in_report_length: int = InReportLength.DUMMY
         self._in_report_lockable: Final[Lockable[InReport]] = Lockable()
         self._out_report_lockable: Final[Lockable[OutReport]] = Lockable()
 
     def open(self):
-        assert self._hid_device is None, "Device already opened"
-        self._hid_device: HidDevice = self._create()
+        assert self._hid_device.is_opened() is True, "Device not opened"
         self._detect()
         self._start_loop_thread()
 
     def close(self) -> None:
-        assert self._hid_device is not None, "Device already opened"
+        assert self._hid_device.is_opened() is True, "Device already closed"
         self._stop_loop_thread()
         self._hid_device.close()
-        self._hid_device = None
 
     def write(self) -> None:
+        if self._out_report_lockable.value is None:
+            raise Exception("Out report not initialized")
+
         data = self._out_report_lockable.value.to_bytes()
         Log.verbose(data.hex(' '))
         self._hid_device.write(data)
@@ -91,19 +95,19 @@ class HidControllerDevice:
     def on_in_report(self, callback: InReportCallback) -> None:
         self._event_emitter.on(EventType.IN_REPORT, callback)
 
-    def _create(self) -> HidDevice:
-        if self._path is not None:
-            return HidDevice(path=self._path)
-        else:
-            return HidDevice(
-                vendor_id=HidControllerDevice.VENDOR_ID,
-                product_id=HidControllerDevice.PRODUCT_ID,
-                serial_number=self._serial_number
-            )
+    # def _create_device(self) -> HidDevice:
+    #     if self._path is not None:
+    #         return HidDevice(path=self._path)
+    #     else:
+    #         return HidDevice(
+    #             vendor_id=HidControllerDevice.VENDOR_ID,
+    #             product_id=HidControllerDevice.PRODUCT_ID,
+    #             serial_number=self._serial_number
+    #         )
 
     def _detect(self) -> None:
-        dummy_report_bytes: bytes = self._hid_device.read(InReportLength.DUMMY)
-        self._in_report_length: int = len(dummy_report_bytes)
+        buffer = bytearray(100)
+        self._in_report_length = self._hid_device.read(buffer)
         match self._in_report_length:
             case InReportLength.USB_01:
                 self._connection_type = ConnectionType.USB_01
@@ -121,12 +125,6 @@ class HidControllerDevice:
                 raise InvalidInReportLengthException
 
     def _start_loop_thread(self) -> None:
-        self._stop_thread_event = threading.Event()
-        self._thread_started_event = threading.Event()
-        self._loop_thread = Thread(
-            target=self._loop,
-            daemon=True,
-        )
         self._loop_thread.start()
         while not self._thread_started_event.is_set():
             pass
@@ -134,17 +132,15 @@ class HidControllerDevice:
     def _stop_loop_thread(self) -> None:
         self._stop_thread_event.set()
         self._loop_thread.join()
-        self._loop_thread = None
-        self._stop_thread_event = None
-        self._thread_started_event = None
 
     def _loop(self) -> None:
         if not self._thread_started_event.is_set():
             self._thread_started_event.set()
         try:
             while not self._stop_thread_event.is_set():
-                raw_bytes: bytes = self._hid_device.read(self._in_report_length)
-                self._in_report_lockable.value.update(raw_bytes)
+                buffer: bytes = self._hid_device.read()
+                if self._in_report_lockable.value is not None:
+                    self._in_report_lockable.value.update(buffer)
                 self._event_emitter.emit(EventType.IN_REPORT, self._in_report_lockable.value)
         except Exception as exception:
             self._event_emitter.emit(EventType.EXCEPTION, exception)

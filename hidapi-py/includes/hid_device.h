@@ -1,7 +1,13 @@
 #ifndef _HIDAPI_PY_HID_DEVICE_H_
 #define _HIDAPI_PY_HID_DEVICE_H_
 
-#include <hidapi/hidapi.h>
+#include "hid_device_info.h"
+
+#ifdef _WIN32
+    #include <hidapi.h>
+#else
+    #include <hidapi/hidapi.h>
+#endif
 
 #include <string>
 #include <locale>
@@ -9,33 +15,18 @@
 
 #include <pybind11/pybind11.h>
 
+#include <iostream>
+#include <iomanip> // for std::setw, std::setfill
+
 namespace py = pybind11;
 
 class HidDevice {
 public:
-    HidDevice(unsigned short vendor_id, unsigned short product_id, const wchar_t *serial_number, bool blocking = true)
-    {
-        hid_device_ptr = hid_open(vendor_id, product_id, serial_number);
-        if (!hid_device_ptr) {
-            throw std::runtime_error("Failed to open HID device");
-        }
-        if (!blocking)
-        {
-            hid_set_nonblocking(hid_device_ptr, 1);
-        }
-    }
-    HidDevice(const char *path, bool blocking = true)
-    {
-        hid_device_ptr = hid_open_path(path);
-        if (!hid_device_ptr) {
-            throw std::runtime_error("Failed to open HID device");
-        }
-        if (!blocking)
-        {
-            hid_set_nonblocking(hid_device_ptr, 1);
-        }
-    }
-    HidDevice(hid_device_info *device_info, bool blocking = true) : HidDevice(device_info->path, blocking) { }
+    HidDevice(unsigned short vendor_id, unsigned short product_id, const wchar_t *serial_number, bool blocking = true) : HidDevice(hid_open(vendor_id, product_id, serial_number), blocking) { }
+
+    HidDevice(const char *path, bool blocking = true) : HidDevice(hid_open_path(path), blocking) {}
+
+    HidDevice(HidDeviceInfo &device_info, bool blocking = true) : HidDevice(device_info.get_device_info()->path, blocking) { }
 
     ~HidDevice()
     {
@@ -44,35 +35,64 @@ public:
 
     void close()
     {
-        hid_close(hid_device_ptr);
+        if (hid_device_ptr != nullptr)
+        {
+            hid_close(hid_device_ptr);
+            hid_device_ptr = nullptr; // Ensure the pointer is null after closing
+        }
+
+        opened = false;
     }
 
-    int write(std::string data)
+    int write(std::string &data)
     {
         const unsigned char *data_ptr = reinterpret_cast<const unsigned char *>(data.c_str());
         return hid_write(hid_device_ptr, data_ptr, data.size());
     }
 
+    int write(py::bytes &data)
+    {
+        py::buffer_info info(py::buffer(data).request(true));
+        return hid_write(hid_device_ptr, reinterpret_cast<unsigned char *>(info.ptr), info.size);
+    }
+
     py::bytes read(size_t length, int timeout_ms = 0, bool blocking = false)
     {
-        unsigned char *data = new unsigned char[length];
+        unsigned char *buffer = new unsigned char[length];
+        int rv = read(buffer, length, timeout_ms, blocking);
+        auto result = py::bytes(reinterpret_cast<const char *>(buffer), rv);
+        delete[] buffer;
+        return result;
+    }
 
+    py::bytes read(int timeout_ms = 0, bool blocking = false)
+    {
+        int rv = read(temp_read_data, 100, timeout_ms, blocking);
+        return py::bytes(reinterpret_cast<const char *>(temp_read_data), rv);
+    }
+
+    int read(py::bytearray &buffer, int timeout_ms = 0, bool blocking = false)
+    {
+        py::buffer_info info(py::buffer(buffer).request(true));
+        return read(reinterpret_cast<unsigned char *>(info.ptr), info.size, timeout_ms, blocking);
+    }
+
+    int read(unsigned char *buffer, size_t length, int timeout_ms = 0, bool blocking = false)
+    {
         if (timeout_ms == 0 && blocking)
         {
             timeout_ms = -1;
         }
+        int rv;
         if (timeout_ms)
         {
-            hid_read_timeout(hid_device_ptr, data, length, timeout_ms);
+            rv = hid_read_timeout(hid_device_ptr, buffer, length, timeout_ms);
         }
         else
         {
-            hid_read(hid_device_ptr, data, length);
+            rv = hid_read(hid_device_ptr, buffer, length);
         }
-
-        auto result = py::bytes(reinterpret_cast<const char *>(data));
-        delete[] data;
-        return result;
+        return rv;
     }
 
     int set_nonblocking(int nonblock)
@@ -100,6 +120,8 @@ public:
         std::wstring ws(hid_error(hid_device_ptr));
         return std::string(ws.begin(), ws.end());
     }
+
+    bool is_opened() const { return opened; }
     /*
     int get_manufacturer_string(wchar_t *string, size_t maxlen) { return hid_get_manufacturer_string(hid_device_ptr, string, maxlen); }
     int get_product_string(wchar_t *string, size_t maxlen) { return hid_get_product_string(hid_device_ptr, string, maxlen); }
@@ -109,7 +131,23 @@ public:
     */
 
 private:
-    hid_device* hid_device_ptr;
+    HidDevice(hid_device *device_ptr, bool blocking = true) : hid_device_ptr(device_ptr)
+    {
+        if (!hid_device_ptr)
+        {
+            opened = false;
+            throw std::runtime_error("Failed to open HID device");
+        }
+        if (!blocking)
+        {
+            hid_set_nonblocking(hid_device_ptr, 1);
+        }
+        opened = true;
+    }
+
+    hid_device *hid_device_ptr;
+    unsigned char temp_read_data[100];
+    bool opened = true;
 };
 
 #endif // _HIDAPI_PY_HID_DEVICE_H_

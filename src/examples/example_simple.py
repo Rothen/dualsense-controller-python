@@ -6,13 +6,12 @@ from dualsense_controller import DualSenseController
 device_infos = DualSenseController.enumerate_devices()
 if len(device_infos) < 1:
     raise Exception('No DualSense Controller available.')
-
 # flag, which keeps program alive
 is_running = True
 
 # create an instance, use fiŕst available device
 controller = DualSenseController()
-
+print('Controller created')
 
 # switches the keep alive flag, which stops the below loop
 def stop():

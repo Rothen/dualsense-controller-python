@@ -1,24 +1,28 @@
+#ifndef _HIDAPI_PY_HID_DEVICE_INFO_H_
+#define _HIDAPI_PY_HID_DEVICE_INFO_H_
 
-/*
-std::string wchar_to_string(const wchar_t* wstr) {
-    // Use a wide character to UTF-8 conversion
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    return converter.to_bytes(wstr);
-}
+#ifdef _WIN32
+    #include <hidapi.h>
+#else
+    #include <hidapi/hidapi.h>
+#endif
 
-std::wstring string_to_wchar(const std::string& str) {
-    // Use a UTF-8 to wide character conversion
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    return converter.from_bytes(str);
-}
+#include <string>
+#include <locale>
+#include <codecvt>
+
+#include <pybind11/pybind11.h>
+
+namespace py = pybind11;
 
 class HidDeviceInfo {
 public:
-    HidDeviceInfo() : hid_device_info_ptr(nullptr) {}
+    HidDeviceInfo() : hid_device_info_ptr(0) {}
+    HidDeviceInfo(hid_device_info *ptr) : hid_device_info_ptr(ptr) {}
     ~HidDeviceInfo() { }
     
     std::string get_path() {return hid_device_info_ptr->path;}
-    void set_path(std::string &path) { std::memcpy(hid_device_info_ptr->path, path.c_str(), path.size() * sizeof(char)); }
+    void set_path(std::string &path) { std::memcpy(hid_device_info_ptr->path, path.c_str(), path.size() * sizeof(wchar_t)); }
 
     unsigned short get_vendor_id() { return hid_device_info_ptr->vendor_id; }
     void set_vendor_id(unsigned short vencor_id) { hid_device_info_ptr->vendor_id = vencor_id; }
@@ -26,17 +30,17 @@ public:
     unsigned short get_product_id() { return hid_device_info_ptr->product_id; }
     void set_product_id(unsigned short product_id) { hid_device_info_ptr->product_id = product_id; }
 
-    std::string get_serial_number() { return wchar_to_string(hid_device_info_ptr->serial_number); }
-    void set_serial_number(std::string &serial_number) { std::memcpy(hid_device_info_ptr->serial_number, string_to_wchar(serial_number).c_str(), string_to_wchar(serial_number).size() * sizeof(char)); }
+    std::wstring get_serial_number() { return hid_device_info_ptr->serial_number; }
+    void set_serial_number(std::wstring &serial_number) { std::memcpy(hid_device_info_ptr->serial_number, serial_number.c_str(), serial_number.size() * sizeof(wchar_t)); }
 
     unsigned short get_release_number() { return hid_device_info_ptr->release_number; }
     void set_release_number(unsigned int release_number) { hid_device_info_ptr->release_number = release_number; }
 
-    std::string get_manufacturer_string() { return wchar_to_string(hid_device_info_ptr->manufacturer_string); }
-    void set_manufacturer_string(std::string &manufacturer_string) { std::memcpy(hid_device_info_ptr->manufacturer_string, string_to_wchar(manufacturer_string).c_str(), string_to_wchar(manufacturer_string).size() * sizeof(char)); }
+    std::wstring get_manufacturer_string() { return std::wstring(hid_device_info_ptr->manufacturer_string); }
+    void set_manufacturer_string(std::wstring &manufacturer_string) { std::memcpy(hid_device_info_ptr->manufacturer_string, manufacturer_string.c_str(), manufacturer_string.size() * sizeof(wchar_t)); }
 
-    std::string get_product_string() { return wchar_to_string(hid_device_info_ptr->product_string); }
-    void set_product_string(std::string &product_string) { std::memcpy(hid_device_info_ptr->product_string, string_to_wchar(product_string).c_str(), string_to_wchar(product_string).size() * sizeof(char)); }
+    std::wstring get_product_string() { return std::wstring(hid_device_info_ptr->product_string); }
+    void set_product_string(std::wstring &product_string) { std::memcpy(hid_device_info_ptr->product_string, product_string.c_str(), product_string.size() * sizeof(wchar_t)); }
 
     unsigned short get_usage_page() { return hid_device_info_ptr->usage_page; }
     void set_usage_page(unsigned short usage_page) { hid_device_info_ptr->usage_page = usage_page; }
@@ -47,10 +51,12 @@ public:
     int get_interface_number() { return hid_device_info_ptr->interface_number; }
     void set_interface_number(int interface_number) { hid_device_info_ptr->interface_number = interface_number; }
 
-    HidDeviceInfo get_next() { 
-        HidDeviceInfo next_device_info;
-        next_device_info.hid_device_info_ptr = hid_device_info_ptr->next;
-        return next_device_info;
+    HidDeviceInfo get_next() {
+        if (hid_device_info_ptr == nullptr || hid_device_info_ptr->next == nullptr)
+        {
+            return HidDeviceInfo(nullptr); // just return a null wrapper
+        }
+        return HidDeviceInfo(hid_device_info_ptr->next);
     }
     void set_next(HidDeviceInfo &hid_device_info) {
         hid_device_info_ptr->next = hid_device_info.hid_device_info_ptr;
@@ -59,9 +65,14 @@ public:
     hid_bus_type get_bus_type() { return hid_device_info_ptr->bus_type; }
     void set_bus_type(hid_bus_type bus_type){ hid_device_info_ptr->bus_type = bus_type; }
 
+    bool has() { return hid_device_info_ptr != nullptr; }
+    bool has_next() { return hid_device_info_ptr->next != nullptr; }
+
+    hid_device_info *get_device_info() { return hid_device_info_ptr; }
+
 private:
-    hid_device_info* hid_device_info_ptr;
-};*/
+    hid_device_info *hid_device_info_ptr;
+};
 
     /*py::class_<HidDeviceInfo>(m, "HidDeviceInfo")
         .def(py::init<>())
@@ -77,3 +88,5 @@ private:
         .def_property("interface_number", &HidDeviceInfo::get_interface_number, &HidDeviceInfo::set_interface_number, "USB interface which this logical device represents")
         .def_property("next", &HidDeviceInfo::get_next, &HidDeviceInfo::set_next, "Next device")
         .def_property("bus_type", &HidDeviceInfo::get_bus_type, &HidDeviceInfo::set_bus_type, "Underly bus type");*/
+    
+#endif // _HIDAPI_PY_HID_DEVICE_INFO_H_

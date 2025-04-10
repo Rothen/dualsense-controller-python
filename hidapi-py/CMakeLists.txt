@@ -31,33 +31,76 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(pybind11)
 include_directories(${DEPS_FOLDER}/pybind11/include)
 
-find_library(HIDAPI_LIBRARY NAMES hidapi-hidraw hidapi-libusb hidapi)
-
 set(SOURCES
     src/bindings.cpp
 )
 
 pybind11_add_module(hidapi-py ${SOURCES})
+
+if(WIN32)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(ARCH_DIR "x64")
+    else()
+        set(ARCH_DIR "x86")
+    endif()
+
+    set(HIDAPI_ROOT "${DEPS_FOLDER}/hidapi-win")
+    set(HIDAPI_INCLUDE_DIR "${HIDAPI_ROOT}/include")
+    set(HIDAPI_ARCH "${HIDAPI_ROOT}/${ARCH_DIR}")
+    set(HIDAPI_LIBRARY "${HIDAPI_ARCH}/hidapi.lib")
+    set(HIDAPI_DLL "${HIDAPI_ARCH}/hidapi.dll")
+
+    message(STATUS "Building for architecture: ${ARCH_DIR}")
+    message(STATUS "Using HIDAPI from: ${HIDAPI_ARCH}")
+
+    # Copy DLL to output directory
+    add_custom_command(TARGET hidapi-py POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${HIDAPI_LIBRARY}"
+        $<TARGET_FILE_DIR:hidapi-py>
+        COMMENT "Copying HIDAPI DLL to output directory"
+    )
+    add_custom_command(TARGET hidapi-py POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${HIDAPI_DLL}"
+        $<TARGET_FILE_DIR:hidapi-py>
+        COMMENT "Copying HIDAPI DLL to output directory"
+    )
+else()
+    find_library(HIDAPI_LIBRARY NAMES hidapi-hidraw hidapi-libusb hidapi)
+endif()
+
+message(STATUS "Using HIDAPI from: ${HIDAPI_INCLUDE_DIR}")
 set_target_properties(hidapi-py PROPERTIES OUTPUT_NAME "hidapi_py")
 target_include_directories(hidapi-py PRIVATE ${CMAKE_SOURCE_DIR}/includes)
 target_include_directories(hidapi-py PRIVATE ${HIDAPI_INCLUDE_DIR})
 target_link_libraries(hidapi-py PRIVATE ${HIDAPI_LIBRARY})
 
+SET(COPY_TO_PATH ${CMAKE_SOURCE_DIR}/../src/dualsense_controller/core/hidapi)
+
+if(WIN32)
+    add_custom_command(TARGET hidapi-py POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${HIDAPI_DLL}"
+        ${COPY_TO_PATH}
+        COMMENT "Copying HIDAPI DLL to output directory"
+    )
+endif()
+
 add_custom_command(TARGET hidapi-py POST_BUILD
-    VERBATIM COMMAND python -c "import os; import sys; sys.path.insert(1, os.getcwd()) ; from pybind11_stubgen import main; import hidapi_py; sys.argv[0] = 'pybind11-stubgen'; sys.argv.append('--ignore-all-errors') ; sys.argv.append('-o') ; sys.argv.append('.') ; sys.argv.append('hidapi_py') ; main() " || (exit 0)
+    VERBATIM COMMAND python -c "import os; import sys; sys.path.insert(1, os.getcwd()) ; from pybind11_stubgen import main; import hidapi_py; sys.argv[0] = 'pybind11-stubgen'; sys.argv.append('--ignore-all-errors') ; sys.argv.append('-o') ; sys.argv.append('.') ; sys.argv.append('hidapi_py') ; main() " ||(exit 0)
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     COMMENT "Creating stubs for hidapi-py"
 )
 
-SET(COPY_TO_PATH ${CMAKE_SOURCE_DIR}/../src/dualsense_controller/core/hidapi)
 ADD_CUSTOM_COMMAND(TARGET hidapi-py POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
-        $<TARGET_FILE:hidapi-py>
-        ${COPY_TO_PATH}
+    $<TARGET_FILE:hidapi-py>
+    ${COPY_TO_PATH}
     COMMENT "Copying hidapi-py lib file library to '${COPY_TO_PATH}'")
-    
+
 ADD_CUSTOM_COMMAND(TARGET hidapi-py POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
-        "${CMAKE_CURRENT_BINARY_DIR}/hidapi_py.pyi"
-        ${COPY_TO_PATH}
+    "${CMAKE_CURRENT_BINARY_DIR}/hidapi_py.pyi"
+    ${COPY_TO_PATH}
     COMMENT "Copying hidapi-py stubs to '${COPY_TO_PATH}'")
