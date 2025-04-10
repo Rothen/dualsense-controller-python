@@ -1,17 +1,16 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Final
 
 _IndexDict = dict[str, int]
-
 
 class InReport(ABC):
     _OFFSET: Final[int] = 1
 
     @property
-    def raw_bytes(self) -> bytes:
+    def raw_bytes(self) -> bytes | bytearray | None:
         return self._raw_bytes
 
-    def __init__(self, index_dict: _IndexDict, raw_bytes: bytearray = None):
+    def __init__(self, index_dict: _IndexDict, raw_bytes: bytes | bytearray | None = None):
         self._index_dict: Final[_IndexDict] = index_dict
         self._raw_bytes: bytes | bytearray | None = raw_bytes
 

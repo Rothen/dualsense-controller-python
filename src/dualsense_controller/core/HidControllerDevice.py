@@ -82,10 +82,12 @@ class HidControllerDevice:
         self._hid_device.close()
 
     def write(self) -> None:
-        if self._out_report_lockable.value is None:
+        out_report_value = self._out_report_lockable.value
+
+        if out_report_value is None:
             raise Exception("Out report not initialized")
 
-        data = self._out_report_lockable.value.to_bytes()
+        data = out_report_value.to_bytes()
         Log.verbose(data.hex(' '))
         self._hid_device.write(data)
 
@@ -94,16 +96,6 @@ class HidControllerDevice:
 
     def on_in_report(self, callback: InReportCallback) -> None:
         self._event_emitter.on(EventType.IN_REPORT, callback)
-
-    # def _create_device(self) -> HidDevice:
-    #     if self._path is not None:
-    #         return HidDevice(path=self._path)
-    #     else:
-    #         return HidDevice(
-    #             vendor_id=HidControllerDevice.VENDOR_ID,
-    #             product_id=HidControllerDevice.PRODUCT_ID,
-    #             serial_number=self._serial_number
-    #         )
 
     def _detect(self) -> None:
         buffer = bytearray(100)
@@ -139,8 +131,9 @@ class HidControllerDevice:
         try:
             while not self._stop_thread_event.is_set():
                 buffer: bytes = self._hid_device.read()
-                if self._in_report_lockable.value is not None:
-                    self._in_report_lockable.value.update(buffer)
-                self._event_emitter.emit(EventType.IN_REPORT, self._in_report_lockable.value)
+                value = self._in_report_lockable.value
+                if value is not None:
+                    value.update(buffer)
+                self._event_emitter.emit(EventType.IN_REPORT, value)
         except Exception as exception:
             self._event_emitter.emit(EventType.EXCEPTION, exception)
