@@ -31,22 +31,33 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(pybind11)
 include_directories(${DEPS_FOLDER}/pybind11/include)
 
-# Add hidapi (Assuming you have the library or sources)
-# You can replace this with your actual hidapi setup
 find_library(HIDAPI_LIBRARY NAMES hidapi-hidraw hidapi-libusb hidapi)
 
-# Your binding source file
 set(SOURCES
     src/bindings.cpp
 )
 
 pybind11_add_module(hidapi-py ${SOURCES})
 set_target_properties(hidapi-py PROPERTIES OUTPUT_NAME "hidapi_py")
+target_include_directories(hidapi-py PRIVATE ${CMAKE_SOURCE_DIR}/includes)
 target_include_directories(hidapi-py PRIVATE ${HIDAPI_INCLUDE_DIR})
 target_link_libraries(hidapi-py PRIVATE ${HIDAPI_LIBRARY})
 
-# add_custom_command(TARGET hidapi-py POST_BUILD
-#     VERBATIM COMMAND python -c "import os; import sys; sys.path.insert(1, os.getcwd()) ; from pybind11_stubgen import main; import hidapi_py; sys.argv[0] = 'pybind11-stubgen'; sys.argv.append('--ignore-all-errors') ; sys.argv.append('-o') ; sys.argv.append('.') ; sys.argv.append('hidapi_py') ; main() " || (exit 0)
-#     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-#     COMMENT " Creating stubs for MC3D-TRECSIM "
-# )
+add_custom_command(TARGET hidapi-py POST_BUILD
+    VERBATIM COMMAND python -c "import os; import sys; sys.path.insert(1, os.getcwd()) ; from pybind11_stubgen import main; import hidapi_py; sys.argv[0] = 'pybind11-stubgen'; sys.argv.append('--ignore-all-errors') ; sys.argv.append('-o') ; sys.argv.append('.') ; sys.argv.append('hidapi_py') ; main() " || (exit 0)
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Creating stubs for hidapi-py"
+)
+
+SET(COPY_TO_PATH ${CMAKE_SOURCE_DIR}/../src/dualsense_controller/core/hidapi)
+ADD_CUSTOM_COMMAND(TARGET hidapi-py POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        $<TARGET_FILE:hidapi-py>
+        ${COPY_TO_PATH}
+    COMMENT "Copying hidapi-py lib file library to '${COPY_TO_PATH}'")
+    
+ADD_CUSTOM_COMMAND(TARGET hidapi-py POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${CMAKE_CURRENT_BINARY_DIR}/hidapi_py.pyi"
+        ${COPY_TO_PATH}
+    COMMENT "Copying hidapi-py stubs to '${COPY_TO_PATH}'")

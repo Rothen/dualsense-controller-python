@@ -23,7 +23,7 @@ from dualsense_controller.api.property.TriggerProperty import TriggerProperty
 from dualsense_controller.api.typedef import PropertyChangeCallback
 from dualsense_controller.core.DualSenseControllerCore import DualSenseControllerCore
 from dualsense_controller.core.enum import ConnectionType
-from dualsense_controller.core.hidapi import DeviceInfo
+from dualsense_controller.core.hidapi import HidDeviceInfo
 from dualsense_controller.core.state.mapping.enum import StateValueMapping as Mapping
 from dualsense_controller.core.state.typedef import Number
 
@@ -33,7 +33,7 @@ class DualSenseController:
     # ################################################# STATIC STUFF ##################################################
 
     @staticmethod
-    def enumerate_devices() -> list[DeviceInfo]:
+    def enumerate_devices() -> list[HidDeviceInfo]:
         return DualSenseControllerCore.enumerate_devices()
 
     # ################################################# GETTERS  MISC ##################################################
@@ -228,7 +228,7 @@ class DualSenseController:
     def __init__(
             self,
             # CORE
-            device_index_or_device_info: int | DeviceInfo = 0,
+            device_index_or_device_info: int | HidDeviceInfo = 0,
             left_joystick_deadzone: Number = 0.05,
             right_joystick_deadzone: Number = 0.05,
             left_trigger_deadzone: Number = 0,

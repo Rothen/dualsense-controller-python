@@ -3,7 +3,7 @@ from typing import Final
 from dualsense_controller.core.Benchmarker import Benchmark, Benchmarker
 from dualsense_controller.core.HidControllerDevice import HidControllerDevice
 from dualsense_controller.core.enum import ConnectionType, EventType
-from dualsense_controller.core.hidapi.hidapi import DeviceInfo
+from dualsense_controller.core.hidapi import HidDeviceInfo
 from dualsense_controller.core.log import Log
 from dualsense_controller.core.report.in_report.InReport import InReport
 from dualsense_controller.core.state.State import State
@@ -23,7 +23,7 @@ class DualSenseControllerCore:
 
     # ######################################### STATIC  ##########################################v
     @staticmethod
-    def enumerate_devices() -> list[DeviceInfo]:
+    def enumerate_devices() -> list[HidDeviceInfo]:
         return HidControllerDevice.enumerate_devices()
 
     # ######################################### BASE  ##########################################v
@@ -61,7 +61,7 @@ class DualSenseControllerCore:
     def __init__(
             self,
             # ##### BASE  #####
-            device_index_or_device_info: int | DeviceInfo = 0,
+            device_index_or_device_info: int | HidDeviceInfo = 0,
             # ##### FEELING  #####
             left_joystick_deadzone: Number = 0,
             right_joystick_deadzone: Number = 0,

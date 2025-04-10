@@ -3,14 +3,14 @@ from typing import Generator
 
 from dualsense_controller.api.DualSenseController import DualSenseController, Mapping
 from dualsense_controller.api.enum import UpdateLevel
-from dualsense_controller.core.hidapi import DeviceInfo
+from dualsense_controller.core.hidapi import HidDeviceInfo
 from dualsense_controller.core.state.typedef import Number
 
 
 @contextmanager
 def active_dualsense_controller(
         # CORE
-        device_index_or_device_info: int | DeviceInfo = 0,
+        device_index_or_device_info: int | HidDeviceInfo = 0,
         left_joystick_deadzone: Number = 0.05,
         right_joystick_deadzone: Number = 0.05,
         left_trigger_deadzone: Number = 0,

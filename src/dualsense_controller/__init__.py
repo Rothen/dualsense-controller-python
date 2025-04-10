@@ -1,4 +1,4 @@
-from .api.DualSenseController import DualSenseController, Mapping, DeviceInfo, ConnectionType
+from .api.DualSenseController import DualSenseController, Mapping, HidDeviceInfo, ConnectionType
 from .api.contextmanager import active_dualsense_controller
 from .api.enum import UpdateLevel
 from .api.property import TriggerProperty
