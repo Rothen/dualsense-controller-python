@@ -73,22 +73,52 @@ private:
 
 class HidDevice {
 public:
-    HidDevice(unsigned short vendor_id, unsigned short product_id, const wchar_t *serial_number) {
+    HidDevice(unsigned short vendor_id, unsigned short product_id, const wchar_t *serial_number)
+    {
         hid_device_ptr = hid_open(vendor_id, product_id, serial_number);
         if (!hid_device_ptr) {
             throw std::runtime_error("Failed to open HID device");
         }
     }
-    HidDevice(const char *path) {
+    HidDevice(const char *path)
+    {
         hid_device_ptr = hid_open_path(path);
         if (!hid_device_ptr) {
             throw std::runtime_error("Failed to open HID device");
         }
     }
 
-    ~HidDevice() { hid_close(hid_device_ptr); }
+    ~HidDevice()
+    {
+        hid_close(hid_device_ptr);
+    }
 
-    int write(const unsigned char *data, size_t length) { return hid_write(hid_device_ptr, data, length); }
+    int write(std::string data)
+    {
+        const unsigned char *data_ptr = reinterpret_cast<const unsigned char *>(data.c_str());
+        return hid_write(hid_device_ptr, data_ptr, data.size());
+    }
+
+    unsigned char read(size_t length, int timeout_ms = 0, bool blocking = false)
+    {
+        unsigned char *data = new unsigned char[length];
+
+        if (timeout_ms == 0 && blocking)
+        {
+            timeout_ms = -1;
+        }
+        if (timeout_ms)
+        {
+            hid_read_timeout(hid_device_ptr, data, length, timeout_ms);
+        }
+        else
+        {
+            hid_read(hid_device_ptr, data, length);
+        }
+
+        return data;
+    }
+
     int read_timeout(unsigned char *data, size_t length, int milliseconds) { return hid_read_timeout(hid_device_ptr, data, length, milliseconds); }
     int read(unsigned char *data, size_t length) { return hid_read(hid_device_ptr, data, length); }
     int set_nonblocking(int nonblock) { return hid_set_nonblocking(hid_device_ptr, nonblock); }
