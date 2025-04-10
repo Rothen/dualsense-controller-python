@@ -99,7 +99,7 @@ public:
         return hid_write(hid_device_ptr, data_ptr, data.size());
     }
 
-    unsigned char read(size_t length, int timeout_ms = 0, bool blocking = false)
+    std::string read(size_t length, int timeout_ms = 0, bool blocking = false)
     {
         unsigned char *data = new unsigned char[length];
 
@@ -116,10 +116,10 @@ public:
             hid_read(hid_device_ptr, data, length);
         }
 
-        return data;
+        return std::string(data);
     }
 
-    int read_timeout(unsigned char *data, size_t length, int milliseconds) { return hid_read_timeout(hid_device_ptr, data, length, milliseconds); }
+    /*int read_timeout(unsigned char *data, size_t length, int milliseconds) { return hid_read_timeout(hid_device_ptr, data, length, milliseconds); }
     int read(unsigned char *data, size_t length) { return hid_read(hid_device_ptr, data, length); }
     int set_nonblocking(int nonblock) { return hid_set_nonblocking(hid_device_ptr, nonblock); }
     int send_feature_report(const unsigned char *data, size_t length) { return hid_send_feature_report(hid_device_ptr, data, length); }
@@ -128,7 +128,7 @@ public:
     int get_product_string(wchar_t *string, size_t maxlen) { return hid_get_product_string(hid_device_ptr, string, maxlen); }
     int get_serial_number_string(wchar_t *string, size_t maxlen) { return hid_get_serial_number_string(hid_device_ptr, string, maxlen); }
     int get_indexed_string(int string_index, wchar_t *string, size_t maxlen) { return hid_get_indexed_string(hid_device_ptr, string_index, string, maxlen); }
-    const wchar_t * get_error() { return hid_error(hid_device_ptr); }
+    const wchar_t * get_error() { return hid_error(hid_device_ptr); }*/
 
 private:
     hid_device* hid_device_ptr;
@@ -163,8 +163,8 @@ PYBIND11_MODULE(hidapi_py, m) {
         .def(py::init<unsigned short, unsigned short, const wchar_t *>())
         .def(py::init<const char *>())
         .def("write", &HidDevice::write)
-        .def("read_timeout", &HidDevice::read_timeout)
         .def("read", &HidDevice::read)
+        /*.def("read_timeout", &HidDevice::read_timeout)
         .def("set_nonblocking", &HidDevice::set_nonblocking)
         .def("send_feature_report", &HidDevice::send_feature_report)
         .def("get_feature_report", &HidDevice::get_feature_report)
@@ -172,25 +172,10 @@ PYBIND11_MODULE(hidapi_py, m) {
         .def("get_product_string", &HidDevice::get_product_string)
         .def("get_serial_number_string", &HidDevice::get_serial_number_string)
         .def("get_indexed_string", &HidDevice::get_indexed_string)
-        .def("get_error", &HidDevice::get_error);
+        .def("get_error", &HidDevice::get_error)*/;
 
     m.def("hid_init", &hid_init, "Initialize the HIDAPI library");
     m.def("hid_exit", &hid_exit, "Finalize the HIDAPI library");
     m.def("hid_enumerate", &hid_enumerate, "Enumerate HID devices");
     m.def("hid_free_enumeration", &hid_free_enumeration, "Free enumeration results");
-
-    m.def("hid_open", &hid_open, "Open a HID device by VID and PID");
-    m.def("hid_open_path", &hid_open_path, "Open a HID device by path");
-    m.def("hid_write", &hid_write, "Write data to a HID device");
-    m.def("hid_read_timeout", &hid_read_timeout, "Read data from a HID device with timeout");
-    m.def("hid_read", &hid_read, "Read data from a HID device");
-    m.def("hid_set_nonblocking", &hid_set_nonblocking, "Set non-blocking mode for a HID device");
-    m.def("hid_send_feature_report", &hid_send_feature_report, "Send a feature report to a HID device");
-    m.def("hid_get_feature_report", &hid_get_feature_report, "Get a feature report from a HID device");
-    m.def("hid_close", &hid_close, "Close a HID device");
-    m.def("hid_get_manufacturer_string", &hid_get_manufacturer_string, "Get manufacturer string from a HID device");
-    m.def("hid_get_product_string", &hid_get_product_string, "Get product string from a HID device");
-    m.def("hid_get_serial_number_string", &hid_get_serial_number_string, "Get serial number string from a HID device");
-    m.def("hid_get_indexed_string", &hid_get_indexed_string, "Get indexed string from a HID device");
-    m.def("hid_error", &hid_error, "Get the last error message from a HID device");    
 }
