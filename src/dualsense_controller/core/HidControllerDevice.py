@@ -7,7 +7,7 @@ import pyee
 from dualsense_controller.core.core.Lockable import Lockable
 from dualsense_controller.core.enum import ConnectionType, EventType
 from dualsense_controller.core.exception import InvalidDeviceIndexException, InvalidInReportLengthException
-from dualsense_controller.core.hidapi import HidDevice, HidDeviceInfo, enumerate
+from dualsense_controller.core.hidapi import HidDevice, HidDeviceInfo, get_all_device_infos
 from dualsense_controller.core.log import Log
 from dualsense_controller.core.report.in_report.Bt01InReport import Bt01InReport
 from dualsense_controller.core.report.in_report.Bt31InReport import Bt31InReport
@@ -28,7 +28,7 @@ class HidControllerDevice:
 
     @staticmethod
     def enumerate_devices() -> list[HidDeviceInfo]:
-        return enumerate(vendor_id=HidControllerDevice.VENDOR_ID, product_id=HidControllerDevice.PRODUCT_ID)
+        return get_all_device_infos(HidControllerDevice.VENDOR_ID, HidControllerDevice.PRODUCT_ID)
 
     @property
     def connection_type(self) -> ConnectionType:
@@ -65,6 +65,7 @@ class HidControllerDevice:
 
         self._serial_number: Final[str] = device_info.serial_number
         self._path: Final[str] = device_info.path
+        self._bus_type: HidDevice = HidDevice(path=self._path)
         self._hid_device: HidDevice = HidDevice(path=self._path)
 
         self._in_report_length: int = InReportLength.DUMMY
@@ -72,12 +73,13 @@ class HidControllerDevice:
         self._out_report_lockable: Final[Lockable[OutReport]] = Lockable()
 
     def open(self):
-        assert self._hid_device.is_opened() is True, "Device not opened"
+        assert self._hid_device.is_opened() is False, "Device already opened"
+        self._hid_device.open()
         self._detect()
         self._start_loop_thread()
 
     def close(self) -> None:
-        assert self._hid_device.is_opened() is True, "Device already closed"
+        assert self._hid_device.is_opened() is True, "Device not opened"
         self._stop_loop_thread()
         self._hid_device.close()
 

@@ -38,7 +38,7 @@ PYBIND11_MODULE(hidapi_py, m) {
         .def_property("usage", &HidDeviceInfo::get_usage, &HidDeviceInfo::set_usage, "Usage for this Device/Interface")
         .def_property("interface_number", &HidDeviceInfo::get_interface_number, &HidDeviceInfo::set_interface_number, "USB interface which this logical device represents")
         .def_property("next", &HidDeviceInfo::get_next, &HidDeviceInfo::set_next, "Next device")
-        .def_property("bus_type", &HidDeviceInfo::get_bus_type, &HidDeviceInfo::set_bus_type, "Underly bus type")
+        .def_property("bus_type", &HidDeviceInfo::get_bus_type, &HidDeviceInfo::set_bus_type, "Underlying bus type")
         .def("has", &HidDeviceInfo::has, "Check if the device info is valid")
         .def("has_next", &HidDeviceInfo::has_next, "Check if there is a next device");
 

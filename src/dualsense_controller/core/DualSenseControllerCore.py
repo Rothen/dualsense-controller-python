@@ -159,12 +159,12 @@ class DualSenseControllerCore:
         self._write_states.set_value(state_name, value)
 
     def init(self) -> None:
-        assert self._hid_controller_device.is_opened, 'not opened yet'
+        assert self._hid_controller_device.is_opened is False, 'already opened'
         self._hid_controller_device.open()
         self._connection_state.value = Connection(True, self._hid_controller_device.connection_type)
 
     def deinit(self) -> None:
-        assert self._hid_controller_device.is_opened, 'not opened yet'
+        assert self._hid_controller_device.is_opened is True, 'not opened yet'
         self._hid_controller_device.close()
         self._connection_state.value = Connection(False, self._hid_controller_device.connection_type)
 
