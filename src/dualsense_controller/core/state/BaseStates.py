@@ -2,7 +2,7 @@ from typing import Final, Any
 
 from dualsense_controller.core.state.State import State
 from dualsense_controller.core.state.mapping.StateValueMapper import StateValueMapper
-from dualsense_controller.core.state.typedef import StateChangeCallback, StateName, StateValue
+from dualsense_controller.core.state.typedef import StateChangeCallback, StateName
 
 
 class BaseStates:
@@ -13,7 +13,7 @@ class BaseStates:
 
     @property
     def has_changed_states(self) -> bool:
-        return any(True for key, state in self._states_dict.items() if state.has_changed_since_last_set_value)
+        return any(True for _, state in self._states_dict.items() if state.has_changed_since_last_set_value)
 
     def once_change(
             self, name_or_callback: StateName | StateChangeCallback, callback: StateChangeCallback | None = None
@@ -57,8 +57,8 @@ class BaseStates:
         for state_name, state in self._states_dict.items():
             state.remove_change_listener(callback)
 
-    def _register_state(self, state: State[StateValue]) -> None:
+    def _register_state(self, state: State[Any]) -> None:
         self._states_dict[state.name] = state
 
-    def _get_state_by_name(self, name: StateName) -> State[StateValue]:
+    def _get_state_by_name(self, name: StateName) -> State[Any]:
         return self._states_dict[name]

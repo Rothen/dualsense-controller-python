@@ -292,7 +292,7 @@ class WriteStates(BaseStates):
             compare_fn=compare_fn,
             disable_change_detection=disable_change_detection,
         )
-        self._register_state(name, state)
+        self._register_state(state)
         state.on_change(on_state_change_cb if on_state_change_cb is not None else self._on_state_change)
         return state
 

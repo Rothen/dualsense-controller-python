@@ -59,6 +59,8 @@ controller.btn_cross.on_down(on_cross_btn_pressed)
 controller.btn_cross.on_up(on_cross_btn_released)
 controller.btn_left.on_down(on_left_btn_pressed)
 controller.btn_ps.on_down(on_ps_btn_pressed)
+controller.left_stick.on_change(lambda joystick: print(f'left stick moved: {joystick}'))
+# controller.orientation.on_change(lambda orientation: print(f'accelerometer moved: {orientation}'))
 
 # register the error callback
 controller.on_error(on_error)
