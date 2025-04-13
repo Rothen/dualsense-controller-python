@@ -5,12 +5,12 @@ from typing import Any, Final, Generic
 from dualsense_controller.core.core.Lockable import Lockable
 from dualsense_controller.core.report.in_report.InReport import InReport
 from dualsense_controller.core.state.State import State
-from dualsense_controller.core.state.mapping.typedef import MapFn
+from dualsense_controller.core.state.mapping.typedef import MapFn, empty_map_fn
 from dualsense_controller.core.state.read_state.enum import ReadStateName
-from dualsense_controller.core.state.typedef import CompareFn, StateValue, StateValueFn
+from dualsense_controller.core.state.typedef import CompareFn, StateValue, StateValueFn, default_compare_fn
 
 
-class ReadState(Generic[StateValue], State[StateValue]):
+class ReadState(State[StateValue], Generic[StateValue]):
 
     @property
     def has_changed_dependencies(self) -> bool:
@@ -63,25 +63,26 @@ class ReadState(Generic[StateValue], State[StateValue]):
 
     def __init__(
             self,
+            # READ STATE BEFORE
+            value_calc_fn: StateValueFn[StateValue],
+            in_report_lockable: Lockable[InReport],
+
             # BASE
             name: ReadStateName,
-            value: StateValue = None,
-            default_value: StateValue = None,
+            value: StateValue | None = None,
+            default_value: StateValue | None = None,
             ignore_none: bool = True,
-            mapped_to_raw_fn: MapFn = None,
-            raw_to_mapped_fn: MapFn = None,
-            compare_fn: CompareFn = None,
+            mapped_to_raw_fn: MapFn = empty_map_fn,
+            raw_to_mapped_fn: MapFn = empty_map_fn,
+            compare_fn: CompareFn[StateValue] = default_compare_fn,
 
             # READ STATE
-            value_calc_fn: StateValueFn = None,
-            in_report_lockable: Lockable[InReport] = None,
             enforce_update: bool = False,
             can_update_itself: bool = True,
-            depends_on: list[State[Any]] = None,
-            is_dependency_of: list[State[Any]] = None,
+            depends_on: tuple[ReadState[Any], ...] | None = None,
+            is_dependency_of: tuple[ReadState[Any], ...] | None = None
     ):
-        State.__init__(
-            self,
+        super().__init__(
             name=name,
             value=value,
             default_value=default_value,
@@ -91,12 +92,10 @@ class ReadState(Generic[StateValue], State[StateValue]):
             compare_fn=compare_fn,
         )
         # CONST
-        self._depends_on: Final[list[ReadState[StateValue]]] = depends_on if depends_on is not None else []
-        self._is_dependency_of: Final[list[ReadState[StateValue]]] = (
-            is_dependency_of if is_dependency_of is not None else []
-        )
+        self._depends_on: tuple[ReadState[Any], ...] = depends_on if depends_on is not None else tuple()
+        self._is_dependency_of: tuple[ReadState[Any], ...] = is_dependency_of if is_dependency_of is not None else tuple()
         self._enforce_update: Final[bool] = enforce_update
-        self._value_calc_fn: Final[StateValueFn] = value_calc_fn
+        self._value_calc_fn: Final[StateValueFn[Any, StateValue]] = value_calc_fn
         self._in_report_lockable: Final[Lockable[InReport]] = in_report_lockable
         self._can_update_itself: Final[bool] = can_update_itself
 
@@ -109,9 +108,13 @@ class ReadState(Generic[StateValue], State[StateValue]):
         for is_dependency_of_state in self._is_dependency_of:
             is_dependency_of_state.add_depends_on(self)
 
-    def calc_value(self, trigger_change_on_changed: bool = True) -> StateValue:
-        value_raw: StateValue = self._value_calc_fn(
-            self._in_report_lockable.value,
+    def calc_value(self, trigger_change_on_changed: bool = True) -> StateValue | None:
+        value = self._in_report_lockable.value
+        if value is None:
+            return None
+
+        value_raw: StateValue | None = self._value_calc_fn(
+            value,
             *self._depends_on
         )
         self._set_value_raw(value_raw, trigger_change_on_changed)
@@ -121,7 +124,7 @@ class ReadState(Generic[StateValue], State[StateValue]):
         self._cycle_timestamp = timestamp
 
     def add_as_dependecy_of(self, state: ReadState[Any]):
-        self._is_dependency_of.append(state)
+        self._is_dependency_of = self._is_dependency_of + (state, )
 
     def add_depends_on(self, state: ReadState[Any]):
-        self._depends_on.append(state)
+        self._depends_on = self._depends_on + (state, )

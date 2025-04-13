@@ -6,8 +6,8 @@ from dualsense_controller.core.state.BaseStates import BaseStates
 from dualsense_controller.core.state.State import State
 from dualsense_controller.core.state.ValueCompare import ValueCompare
 from dualsense_controller.core.state.mapping.StateValueMapper import StateValueMapper
-from dualsense_controller.core.state.mapping.typedef import MapFn
-from dualsense_controller.core.state.typedef import CompareFn, StateChangeCallback, StateValue
+from dualsense_controller.core.state.mapping.typedef import MapFn, empty_map_fn
+from dualsense_controller.core.state.typedef import CompareFn, StateChangeCallback, StateValue, default_compare_fn
 from dualsense_controller.core.state.write_state.enum import TriggerEffectMode, WriteStateName, LightbarPulseOptions, \
     PlayerLedsEnable, \
     FlagsPhysics, FlagsControls, LedOptions
@@ -276,10 +276,10 @@ class WriteStates(BaseStates):
             value: StateValue = None,
             default_value: StateValue = None,
             on_state_change_cb: StateChangeCallback = None,
-            mapped_to_raw_fn: MapFn = None,
-            raw_to_mapped_fn: MapFn = None,
+            mapped_to_raw_fn: MapFn = empty_map_fn,
+            raw_to_mapped_fn: MapFn = empty_map_fn,
             ignore_none: bool = True,
-            compare_fn: CompareFn = None,
+            compare_fn: CompareFn[StateValue] = default_compare_fn,
             disable_change_detection: bool = False,
     ) -> State[StateValue]:
         state: State[StateValue] = State[StateValue](

@@ -1,9 +1,10 @@
 from typing import Final
 
+from hidapi_py import HidDeviceInfo
+
 from dualsense_controller.core.Benchmarker import Benchmark, Benchmarker
 from dualsense_controller.core.HidControllerDevice import HidControllerDevice
 from dualsense_controller.core.enum import ConnectionType, EventType
-from dualsense_controller.core.hidapi import HidDeviceInfo
 from dualsense_controller.core.log import Log
 from dualsense_controller.core.report.in_report.InReport import InReport
 from dualsense_controller.core.state.State import State
@@ -143,10 +144,10 @@ class DualSenseControllerCore:
     def once_connection_change(self, callback: StateChangeCallback):
         self._connection_state.once_change(callback)
 
-    def on_state_change(self, state_name: ReadStateName | StateChangeCallback, callback: StateChangeCallback = None):
+    def on_state_change(self, state_name: ReadStateName | StateChangeCallback, callback: StateChangeCallback | None = None):
         self._read_states.on_change(state_name, callback)
 
-    def once_state_change(self, state_name: ReadStateName | StateChangeCallback, callback: StateChangeCallback = None):
+    def once_state_change(self, state_name: ReadStateName | StateChangeCallback, callback: StateChangeCallback | None = None):
         self._read_states.once_change(state_name, callback)
 
     def on_any_state_change(self, callback: StateChangeCallback):
@@ -172,14 +173,16 @@ class DualSenseControllerCore:
 
         self._read_states.update(in_report, self._hid_controller_device.connection_type)
 
-        if self._write_states.has_changed:
+        if self._write_states.has_changed and self._hid_controller_device.out_report is not None:
             # print(f'Sending report.')
             self._write_states.update_out_report(self._hid_controller_device.out_report)
             self._write_states.set_unchanged()
             self._hid_controller_device.write()
 
         if self._update_benchmark_state.has_listeners:
-            self._update_benchmark_state.value = self._update_benchmark.update()
+            benchmark = self._update_benchmark.update()
+            if benchmark is not None:
+                self._update_benchmark_state.value = benchmark
 
     def _on_thread_exception(self, exception: Exception) -> None:
         self._exception_state.value = exception

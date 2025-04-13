@@ -1,9 +1,10 @@
 from contextlib import contextmanager
 from typing import Generator
 
+from hidapi_py import HidDeviceInfo
+
 from dualsense_controller.api.DualSenseController import DualSenseController, Mapping
 from dualsense_controller.api.enum import UpdateLevel
-from dualsense_controller.core.hidapi import HidDeviceInfo
 from dualsense_controller.core.state.typedef import Number
 
 

@@ -1,25 +1,74 @@
-import math
 import time
-from functools import partial
-from typing import Any, Final
-from typing import Callable
+from typing import Any, Final, Callable
 
 import pyee
 
 from dualsense_controller.core.core.Lockable import Lockable
 from dualsense_controller.core.enum import ConnectionType
-from dualsense_controller.core.report.in_report import InReport
+from dualsense_controller.core.report.in_report.InReport import InReport
 from dualsense_controller.core.state.BaseStates import BaseStates
 from dualsense_controller.core.state.mapping.StateValueMapper import StateValueMapper
-from dualsense_controller.core.state.mapping.typedef import MapFn
 from dualsense_controller.core.state.read_state.ReadState import ReadState
-from dualsense_controller.core.state.read_state.ValueCalc import ValueCalc
-from dualsense_controller.core.state.read_state.ValueCompare import ValueCompare
-from dualsense_controller.core.state.read_state.enum import ReadStateName
-from dualsense_controller.core.state.read_state.value_type import Accelerometer, Battery, Gyroscope, JoyStick, \
-    Orientation, TouchFinger, TriggerFeedback, Trigger
-from dualsense_controller.core.state.typedef import CompareFn, Number, StateValue, StateValueFn
-from dualsense_controller.core.util import check_value_restrictions
+from dualsense_controller.core.state.typedef import StateValue
+from dualsense_controller.core.state.read_state.more_read_states import (
+    LeftJoystickReadState,
+    LeftJoystickXReadState,
+    LeftJoystickYReadState,
+    RightJoystickReadState,
+    RightJoystickXReadState,
+    RightJoystickYReadState,
+    GyroscopeReadState,
+    GyroscopeXState,
+    GyroscopeYState,
+    GyroscopeZState,
+    AccelerometerReadState,
+    AccelerometerXState,
+    AccelerometerYState,
+    AccelerometerZState,
+    OrientationState,
+    DPadReadState,
+    DPadUpReadState,
+    DPadLeftReadState,
+    DPadDownReadState,
+    DPadRightReadState,
+    ButtonSquareReadState,
+    ButtonCrossReadState,
+    ButtonCircleReadState,
+    ButtonTriangleReadState,
+    ButtonL1ReadState,
+    ButtonR1ReadState,
+    ButtonL2ReadState,
+    ButtonR2ReadState,
+    ButtonL3ReadState,
+    ButtonR3ReadState,
+    ButtonCreateReadState,
+    ButtonOptionsReadState,
+    ButtonPSReadState,
+    ButtonTouchpadReadState,
+    ButtonMuteReadState,
+    TouchFinger1ActiveReadState,
+    TouchFinger1IDReadState,
+    TouchFinger1XReadState,
+    TouchFinger1YReadState,
+    TouchFinger1ReadState,
+    TouchFinger2ActiveReadState,
+    TouchFinger2IDReadState,
+    TouchFinger2XReadState,
+    TouchFinger2YReadState,
+    TouchFinger2ReadState,
+    LeftTriggerValueReadState,
+    LeftTriggerFeedbackActiveReadState,
+    LeftTriggerFeedbackValueReadState,
+    LeftTriggerFeedbackReadState,
+    RightTriggerValueReadState,
+    RightTriggerFeedbackActiveReadState,
+    RightTriggerFeedbackValueReadState,
+    RightTriggerFeedbackReadState,
+    BatteryLevelPercentageReadState,
+    BatteryFullReadState,
+    BatteryChargingReadState,
+    BatteryReadState
+)
 
 
 class ReadStates(BaseStates):
@@ -33,612 +82,424 @@ class ReadStates(BaseStates):
     ):
         super().__init__(state_value_mapper)
         # CONST
-        self._states_to_trigger_after_all_states_set: Final[list[ReadState]] = []
+        self._states_to_trigger_after_all_states_set: Final[list[ReadState[Any]]] = []
         self._in_report_lockable: Final[Lockable[InReport]] = Lockable()
         # VAR
-        self._timestamp: int | None = None
+        self._timestamp: int = time.perf_counter_ns()
         self._update_emitter: Final[pyee.EventEmitter] = pyee.EventEmitter()
 
         # INIT STICKS
-        self.left_stick: Final[ReadState[JoyStick]] = self._create_and_register_state(
-            ReadStateName.LEFT_STICK,
-            in_report_lockable=self._in_report_lockable,
-            value_calc_fn=ValueCalc.get_left_stick,
+        self.left_stick: Final[LeftJoystickReadState] = LeftJoystickReadState(
+            self._state_value_mapper,
+            self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            compare_fn=ValueCompare.compare_joystick,
-            deadzone_raw=self._state_value_mapper.left_stick_deadzone_mapped_to_raw,
-            middle_deadzone=self._state_value_mapper.left_stick_deadzone_mapped,
-            mapped_min_max_values=[
-                (self._state_value_mapper.mapping_data.left_stick_x.to_min
-                 if self._state_value_mapper.mapping_data is not None
-                    and self._state_value_mapper.mapping_data.left_stick_x is not None else 0),
-                (self._state_value_mapper.mapping_data.left_stick_x.to_max
-                 if self._state_value_mapper.mapping_data is not None
-                    and self._state_value_mapper.mapping_data.left_stick_x is not None else 255),
-                (self._state_value_mapper.mapping_data.left_stick_y.to_min
-                 if self._state_value_mapper.mapping_data is not None
-                    and self._state_value_mapper.mapping_data.left_stick_y is not None else 0),
-                (self._state_value_mapper.mapping_data.left_stick_y.to_max
-                 if self._state_value_mapper.mapping_data is not None
-                    and self._state_value_mapper.mapping_data.left_stick_y is not None else 255),
-            ],
-            raw_to_mapped_fn=self._state_value_mapper.left_stick_raw_to_mapped,
-            mapped_to_raw_fn=self._state_value_mapper.left_stick_mapped_to_raw,
-        )
-        self.left_stick_x: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.LEFT_STICK_X,
-            depends_on=[self.left_stick],
-            value_calc_fn=ValueCalc.get_left_stick_x,
-            in_report_lockable=self._in_report_lockable,
+            can_update_itself=can_update_itself)
+
+        self.left_stick_x: Final[LeftJoystickXReadState] = LeftJoystickXReadState(
+            self.left_stick,
+            self._state_value_mapper,
+            self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            raw_to_mapped_fn=self._state_value_mapper.left_stick_x_raw_to_mapped,
-            mapped_to_raw_fn=self._state_value_mapper.left_stick_x_mapped_to_raw,
-        )
-        self.left_stick_y: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.LEFT_STICK_Y,
-            depends_on=[self.left_stick],
-            value_calc_fn=ValueCalc.get_left_stick_y,
-            in_report_lockable=self._in_report_lockable,
+            can_update_itself=can_update_itself)
+
+        self.left_stick_y: Final[LeftJoystickYReadState] = LeftJoystickYReadState(
+            self.left_stick,
+            self._state_value_mapper,
+            self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            raw_to_mapped_fn=self._state_value_mapper.left_stick_y_raw_to_mapped,
-            mapped_to_raw_fn=self._state_value_mapper.left_stick_y_mapped_to_raw,
-        )
-        self.right_stick: Final[ReadState[JoyStick]] = self._create_and_register_state(
-            ReadStateName.RIGHT_STICK,
-            value_calc_fn=ValueCalc.get_right_stick,
-            in_report_lockable=self._in_report_lockable,
+            can_update_itself=can_update_itself)
+
+        self.right_stick: Final[RightJoystickReadState] = RightJoystickReadState(
+            self._state_value_mapper,
+            self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            compare_fn=ValueCompare.compare_joystick,
-            deadzone_raw=self._state_value_mapper.right_stick_deadzone_mapped_to_raw,
-            middle_deadzone=self._state_value_mapper.right_stick_deadzone_mapped,
-            mapped_min_max_values=[
-                (self._state_value_mapper.mapping_data.right_stick_x.to_min
-                 if self._state_value_mapper.mapping_data is not None
-                    and self._state_value_mapper.mapping_data.right_stick_x is not None else 0),
-                (self._state_value_mapper.mapping_data.right_stick_x.to_max
-                 if self._state_value_mapper.mapping_data is not None
-                    and self._state_value_mapper.mapping_data.right_stick_x is not None else 255),
-                (self._state_value_mapper.mapping_data.right_stick_y.to_min
-                 if self._state_value_mapper.mapping_data is not None
-                    and self._state_value_mapper.mapping_data.right_stick_y is not None else 0),
-                (self._state_value_mapper.mapping_data.right_stick_y.to_max
-                 if self._state_value_mapper.mapping_data is not None
-                    and self._state_value_mapper.mapping_data.right_stick_y is not None else 255),
-            ],
-            raw_to_mapped_fn=self._state_value_mapper.right_stick_raw_to_mapped,
-            mapped_to_raw_fn=self._state_value_mapper.right_stick_mapped_to_raw,
-        )
-        self.right_stick_x: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.RIGHT_STICK_X,
-            depends_on=[self.right_stick],
-            value_calc_fn=ValueCalc.get_right_stick_x,
-            in_report_lockable=self._in_report_lockable,
+            can_update_itself=can_update_itself)
+
+        self.right_stick_x: Final[RightJoystickXReadState] = RightJoystickXReadState(
+            self.right_stick,
+            self._state_value_mapper,
+            self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            raw_to_mapped_fn=self._state_value_mapper.right_stick_x_raw_to_mapped,
-            mapped_to_raw_fn=self._state_value_mapper.right_stick_x_mapped_to_raw,
-        )
-        self.right_stick_y: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.RIGHT_STICK_Y,
-            depends_on=[self.right_stick],
-            value_calc_fn=ValueCalc.get_right_stick_y,
-            in_report_lockable=self._in_report_lockable,
+            can_update_itself=can_update_itself)
+
+        self.right_stick_y: Final[RightJoystickYReadState] = RightJoystickYReadState(
+            self.right_stick,
+            self._state_value_mapper,
+            self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            raw_to_mapped_fn=self._state_value_mapper.right_stick_y_raw_to_mapped,
-            mapped_to_raw_fn=self._state_value_mapper.right_stick_y_mapped_to_raw,
-        )
+            can_update_itself=can_update_itself)
 
         # GYRO
-        self.gyroscope: Final[ReadState[Gyroscope]] = self._create_and_register_state(
-            ReadStateName.GYROSCOPE,
-            value_calc_fn=ValueCalc.get_gyroscope,
+        self.gyroscope: Final[GyroscopeReadState] = GyroscopeReadState(
             in_report_lockable=self._in_report_lockable,
-            default_value=Gyroscope(),
-            enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            compare_fn=ValueCompare.compare_gyroscope,
             threshold_raw=state_value_mapper.gyroscope_threshold_mapped_to_raw,
-            threshold=state_value_mapper.gyroscope_threshold_mapped,
-        )
-        self.gyroscope_x: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.GYROSCOPE_X,
-            depends_on=[self.gyroscope],
-            value_calc_fn=ValueCalc.get_gyroscope_x,
+            enforce_update=enforce_update,
+            can_update_itself=can_update_itself)
+
+        self.gyroscope_x: Final[GyroscopeXState] = GyroscopeXState(
+            self.gyroscope,
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-        )
-        self.gyroscope_y: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.GYROSCOPE_Y,
-            depends_on=[self.gyroscope],
-            value_calc_fn=ValueCalc.get_gyroscope_y,
+            can_update_itself=can_update_itself)
+    
+        self.gyroscope_y: Final[GyroscopeYState] = GyroscopeYState(
+            self.gyroscope,
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-        )
-        self.gyroscope_z: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.GYROSCOPE_Z,
-            depends_on=[self.gyroscope],
-            value_calc_fn=ValueCalc.get_gyroscope_z,
+            can_update_itself=can_update_itself)
+        
+        self.gyroscope_z: Final[GyroscopeZState] = GyroscopeZState(
+            self.gyroscope,
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-        )
+            can_update_itself=can_update_itself)
 
         # ACCEL
-        self.accelerometer: Final[ReadState[Accelerometer]] = self._create_and_register_state(
-            ReadStateName.ACCELEROMETER,
-            value_calc_fn=ValueCalc.get_accelerometer,
+        self.accelerometer: Final[AccelerometerReadState] = AccelerometerReadState(
             in_report_lockable=self._in_report_lockable,
-            default_value=Accelerometer(),
-            enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            compare_fn=ValueCompare.compare_accelerometer,
             threshold_raw=state_value_mapper.accelerometer_threshold_mapped_to_raw,
-            threshold=state_value_mapper.accelerometer_threshold_mapped,
-        )
-        self.accelerometer_x: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.ACCELEROMETER_X,
-            depends_on=[self.accelerometer],
-            value_calc_fn=ValueCalc.get_accelerometer_x,
+            enforce_update=enforce_update,
+            can_update_itself=can_update_itself)
+
+        self.accelerometer_x: Final[AccelerometerXState] = AccelerometerXState(
+            self.accelerometer,
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-        )
-        self.accelerometer_y: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.ACCELEROMETER_Y,
-            depends_on=[self.accelerometer],
-            value_calc_fn=ValueCalc.get_accelerometer_y,
+            can_update_itself=can_update_itself)
+        
+        self.accelerometer_y: Final[AccelerometerYState] = AccelerometerYState(
+            self.accelerometer,
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-        )
-        self.accelerometer_z: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.ACCELEROMETER_Z,
-            depends_on=[self.accelerometer],
-            value_calc_fn=ValueCalc.get_accelerometer_z,
+            can_update_itself=can_update_itself)
+        
+        self.accelerometer_z: Final[AccelerometerZState] = AccelerometerZState(
+            self.accelerometer,
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
+            can_update_itself=can_update_itself
         )
 
         # ORIENT
-        self.orientation: Final[ReadState[Orientation]] = self._create_and_register_state(
-            ReadStateName.ORIENTATION,
-            value_calc_fn=ValueCalc.get_orientation,
-            in_report_lockable=self._in_report_lockable,
-            default_value=Orientation(0, 0, 0),
-            enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            depends_on=[self.accelerometer],
-            compare_fn=ValueCompare.compare_orientation,
+        self.orientation: Final[OrientationState] = OrientationState(
             threshold_raw=state_value_mapper.orientation_threshold_mapped_to_raw,
-            threshold=state_value_mapper.orientation_threshold_mapped,
-            raw_to_mapped_fn=lambda raw: Orientation(
-                round(math.degrees(raw.pitch), 2),
-                round(math.degrees(raw.roll), 2)
-            ),
+            depends_on=self.accelerometer,
+            in_report_lockable=self._in_report_lockable,
+            enforce_update=enforce_update,
+            can_update_itself=can_update_itself
         )
 
         # INIT DIG BTN
-        self.dpad: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.DPAD,
-            value_calc_fn=ValueCalc.get_dpad,
+        self.dpad: Final[ReadState[int]] = DPadReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_up: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_UP,
-            value_calc_fn=ValueCalc.get_btn_up,
+        self.btn_up: Final[DPadUpReadState] = DPadUpReadState(
+            depends_on=self.dpad,
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            depends_on=[self.dpad],
+            can_update_itself=can_update_itself
         )
-        self.btn_left: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_LEFT,
-            value_calc_fn=ValueCalc.get_btn_left,
+        self.btn_left: Final[DPadLeftReadState] = DPadLeftReadState(
+            depends_on=self.dpad,
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            depends_on=[self.dpad],
+            can_update_itself=can_update_itself
         )
-        self.btn_down: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_DOWN,
-            value_calc_fn=ValueCalc.get_btn_down,
+        self.btn_down: Final[DPadDownReadState] = DPadDownReadState(
+            depends_on=self.dpad,
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            depends_on=[self.dpad],
+            can_update_itself=can_update_itself
         )
-        self.btn_right: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_RIGHT,
-            value_calc_fn=ValueCalc.get_btn_right,
+        self.btn_right: Final[DPadRightReadState] = DPadRightReadState(
+            depends_on=self.dpad,
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            depends_on=[self.dpad],
+            can_update_itself=can_update_itself
         )
 
-        self.btn_square: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_SQUARE,
-            value_calc_fn=ValueCalc.get_btn_square,
+        self.btn_square: Final[ButtonSquareReadState] = ButtonSquareReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_cross: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_CROSS,
-            value_calc_fn=ValueCalc.get_btn_cross,
+        self.btn_cross: Final[ButtonCrossReadState] = ButtonCrossReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_circle: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_CIRCLE,
-            value_calc_fn=ValueCalc.get_btn_circle,
+        self.btn_circle: Final[ButtonCircleReadState] = ButtonCircleReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_triangle: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_TRIANGLE,
-            value_calc_fn=ValueCalc.get_btn_triangle,
+        self.btn_triangle: Final[ButtonTriangleReadState] = ButtonTriangleReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_l1: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_L1,
-            value_calc_fn=ValueCalc.get_btn_l1,
+        self.btn_l1: Final[ButtonL1ReadState] = ButtonL1ReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_r1: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_R1,
-            value_calc_fn=ValueCalc.get_btn_r1,
+        self.btn_r1: Final[ButtonR1ReadState] = ButtonR1ReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_l2: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_L2,
-            value_calc_fn=ValueCalc.get_btn_l2,
+        self.btn_l2: Final[ButtonL2ReadState] = ButtonL2ReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_r2: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_R2,
-            value_calc_fn=ValueCalc.get_btn_r2,
+        self.btn_r2: Final[ButtonR2ReadState] = ButtonR2ReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_create: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_CREATE,
-            value_calc_fn=ValueCalc.get_btn_create,
+        self.btn_create: Final[ButtonCreateReadState] = ButtonCreateReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_options: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_OPTIONS,
-            value_calc_fn=ValueCalc.btn_options,
+        self.btn_options: Final[ButtonOptionsReadState] = ButtonOptionsReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_l3: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_L3,
-            value_calc_fn=ValueCalc.get_btn_l3,
+        self.btn_l3: Final[ButtonL3ReadState] = ButtonL3ReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_r3: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_R3,
-            value_calc_fn=ValueCalc.get_btn_r3,
+        self.btn_r3: Final[ButtonR3ReadState] = ButtonR3ReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_ps: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_PS,
-            value_calc_fn=ValueCalc.get_btn_ps,
+        self.btn_ps: Final[ButtonPSReadState] = ButtonPSReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_touchpad: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_TOUCHPAD,
-            value_calc_fn=ValueCalc.get_btn_touchpad,
+        self.btn_touchpad: Final[ButtonTouchpadReadState] = ButtonTouchpadReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.btn_mute: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BTN_MUTE,
-            value_calc_fn=ValueCalc.get_btn_mute,
+        self.btn_mute: Final[ButtonMuteReadState] = ButtonMuteReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
 
         # INIT TOUCH
-        self.touch_finger_1_active: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.TOUCH_FINGER_1_ACTIVE,
-            value_calc_fn=ValueCalc.get_touch_finger_1_active,
+        self.touch_finger_1_active: Final[TouchFinger1ActiveReadState] = TouchFinger1ActiveReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.touch_finger_1_id: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.TOUCH_FINGER_1_ID,
-            value_calc_fn=ValueCalc.get_touch_finger_1_id,
+
+        self.touch_finger_1_id: Final[TouchFinger1IDReadState] = TouchFinger1IDReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.touch_finger_1_x: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.TOUCH_FINGER_1_X,
-            value_calc_fn=ValueCalc.get_touch_finger_1_x,
+        
+        self.touch_finger_1_x: Final[TouchFinger1XReadState] = TouchFinger1XReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.touch_finger_1_y: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.TOUCH_FINGER_1_Y,
-            value_calc_fn=ValueCalc.get_touch_finger_1_y,
+        
+        self.touch_finger_1_y: Final[TouchFinger1YReadState] = TouchFinger1YReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.touch_finger_1: Final[ReadState[TouchFinger]] = self._create_and_register_state(
-            ReadStateName.TOUCH_FINGER_1,
-            value_calc_fn=ValueCalc.get_touch_finger_1,
-            in_report_lockable=self._in_report_lockable,
-            enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            compare_fn=ValueCompare.compare_touch_finger,
-            depends_on=[
+        
+        self.touch_finger_1: Final[TouchFinger1ReadState] = TouchFinger1ReadState(
+            depends_on=(
                 self.touch_finger_1_active,
                 self.touch_finger_1_id,
                 self.touch_finger_1_x,
                 self.touch_finger_1_y
-            ]
+            ),
+            in_report_lockable=self._in_report_lockable,
+            enforce_update=enforce_update,
+            can_update_itself=can_update_itself
+        )
+        self.touch_finger_2_active: Final[TouchFinger2ActiveReadState] = TouchFinger2ActiveReadState(
+            in_report_lockable=self._in_report_lockable,
+            enforce_update=enforce_update,
+            can_update_itself=can_update_itself,
         )
 
-        self.touch_finger_2_active: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.TOUCH_FINGER_2_ACTIVE,
-            value_calc_fn=ValueCalc.get_touch_finger_2_active,
+        self.touch_finger_2_id: Final[TouchFinger2IDReadState] = TouchFinger2IDReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.touch_finger_2_id: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.TOUCH_FINGER_2_ID,
-            value_calc_fn=ValueCalc.get_touch_finger_2_id,
+
+        self.touch_finger_2_x: Final[TouchFinger2XReadState] = TouchFinger2XReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.touch_finger_2_x: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.TOUCH_FINGER_2_X,
-            value_calc_fn=ValueCalc.get_touch_finger_2_x,
+
+        self.touch_finger_2_y: Final[TouchFinger2YReadState] = TouchFinger2YReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.touch_finger_2_y: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.TOUCH_FINGER_2_Y,
-            value_calc_fn=ValueCalc.get_touch_finger_2_y,
-            in_report_lockable=self._in_report_lockable,
-            enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-        )
-        self.touch_finger_2: Final[ReadState[TouchFinger]] = self._create_and_register_state(
-            ReadStateName.TOUCH_FINGER_2,
-            value_calc_fn=ValueCalc.get_touch_finger_2,
-            in_report_lockable=self._in_report_lockable,
-            enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            compare_fn=ValueCompare.compare_touch_finger,
-            depends_on=[
+
+        self.touch_finger_2: Final[TouchFinger2ReadState] = TouchFinger2ReadState(
+            depends_on=(
                 self.touch_finger_2_active,
                 self.touch_finger_2_id,
                 self.touch_finger_2_x,
                 self.touch_finger_2_y
-            ]
+            ),
+            in_report_lockable=self._in_report_lockable,
+            enforce_update=enforce_update,
+            can_update_itself=can_update_itself
         )
 
         # INIT TRIGGERS
-        self.left_trigger_value: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.LEFT_TRIGGER_VALUE,
-            value_calc_fn=ValueCalc.get_left_trigger_value,
+        self.left_trigger_value: Final[LeftTriggerValueReadState] = LeftTriggerValueReadState(
+            state_value_mapper=self._state_value_mapper,
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            compare_fn=ValueCompare.compare_trigger_value,
-            deadzone_raw=self._state_value_mapper.left_trigger_deadzone_mapped_to_raw,
-            deadzone=self._state_value_mapper.left_trigger_deadzone_mapped,
-            mapped_min_max_values=[
-                (self._state_value_mapper.mapping_data.left_trigger.to_min
-                 if self._state_value_mapper.mapping_data is not None
-                    and self._state_value_mapper.mapping_data.left_trigger is not None else 0),
-                (self._state_value_mapper.mapping_data.left_trigger.to_max
-                 if self._state_value_mapper.mapping_data is not None
-                    and self._state_value_mapper.mapping_data.left_trigger is not None else 255),
-            ],
-            raw_to_mapped_fn=self._state_value_mapper.left_trigger_raw_to_mapped,
-            mapped_to_raw_fn=self._state_value_mapper.left_trigger_mapped_to_raw,
+            can_update_itself=can_update_itself
         )
-        self.left_trigger_feedback_active: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.LEFT_TRIGGER_FEEDBACK_ACTIVE,
-            value_calc_fn=ValueCalc.get_left_trigger_feedback_active,
+        
+        self.left_trigger_feedback_active: Final[LeftTriggerFeedbackActiveReadState] = LeftTriggerFeedbackActiveReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.left_trigger_feedback_value: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.LEFT_TRIGGER_FEEDBACK_VALUE,
-            value_calc_fn=ValueCalc.get_left_trigger_feedback_value,
+        
+        self.left_trigger_feedback_value: Final[LeftTriggerFeedbackValueReadState] = LeftTriggerFeedbackValueReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.left_trigger_feedback: Final[ReadState[TriggerFeedback]] = self._create_and_register_state(
-            ReadStateName.LEFT_TRIGGER_FEEDBACK,
-            value_calc_fn=ValueCalc.get_left_trigger_feedback,
+        
+        self.left_trigger_feedback: Final[LeftTriggerFeedbackReadState] = LeftTriggerFeedbackReadState(
+            depends_on=(self.left_trigger_feedback_active, self.left_trigger_feedback_value),
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            depends_on=[self.left_trigger_feedback_active, self.left_trigger_feedback_value],
-            compare_fn=ValueCompare.compare_trigger_feedback
+            can_update_itself=can_update_itself
         )
-
-        self.right_trigger_value: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.RIGHT_TRIGGER_VALUE,
-            value_calc_fn=ValueCalc.get_right_trigger_value,
+        
+        self.right_trigger_value: Final[RightTriggerValueReadState] = RightTriggerValueReadState(
+            state_value_mapper=self._state_value_mapper,
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            compare_fn=ValueCompare.compare_trigger_value,
-            deadzone_raw=self._state_value_mapper.right_trigger_deadzone_mapped_to_raw,
-            deadzone=self._state_value_mapper.right_trigger_deadzone_mapped,
-            mapped_min_max_values=[
-                (self._state_value_mapper.mapping_data.right_trigger.to_min
-                 if self._state_value_mapper.mapping_data is not None
-                    and self._state_value_mapper.mapping_data.right_trigger is not None else 0),
-                (self._state_value_mapper.mapping_data.right_trigger.to_max
-                 if self._state_value_mapper.mapping_data is not None
-                    and self._state_value_mapper.mapping_data.right_trigger is not None else 255),
-            ],
-            raw_to_mapped_fn=self._state_value_mapper.right_trigger_raw_to_mapped,
-            mapped_to_raw_fn=self._state_value_mapper.right_trigger_mapped_to_raw,
+            can_update_itself=can_update_itself
         )
-        self.right_trigger_feedback_active: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.RIGHT_TRIGGER_FEEDBACK_ACTIVE,
-            value_calc_fn=ValueCalc.get_right_trigger_feedback_active,
+        self.right_trigger_feedback_active: Final[RightTriggerFeedbackActiveReadState] = RightTriggerFeedbackActiveReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.right_trigger_feedback_value: Final[ReadState[int]] = self._create_and_register_state(
-            ReadStateName.RIGHT_TRIGGER_FEEDBACK_VALUE,
-            value_calc_fn=ValueCalc.get_right_trigger_feedback_value,
+        self.right_trigger_feedback_value: Final[RightTriggerFeedbackValueReadState] = RightTriggerFeedbackValueReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
             can_update_itself=can_update_itself,
         )
-        self.right_trigger_feedback: Final[ReadState[TriggerFeedback]] = self._create_and_register_state(
-            ReadStateName.RIGHT_TRIGGER_FEEDBACK,
-            value_calc_fn=ValueCalc.get_right_trigger_feedback,
+        self.right_trigger_feedback: Final[RightTriggerFeedbackReadState] = RightTriggerFeedbackReadState(
+            depends_on=(self.right_trigger_feedback_active, self.right_trigger_feedback_value),
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            depends_on=[self.right_trigger_feedback_active, self.right_trigger_feedback_value],
-            compare_fn=ValueCompare.compare_trigger_feedback
+            can_update_itself=can_update_itself
         )
 
         # INIT BATT
-        self.battery_level_percentage: Final[ReadState[float]] = self._create_and_register_state(
-            ReadStateName.BATTERY_LEVEL_PERCENT,
-            value_calc_fn=ValueCalc.get_battery_level_percentage,
+        self.battery_level_percentage: Final[BatteryLevelPercentageReadState] = BatteryLevelPercentageReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            ignore_none=False,
+            can_update_itself=can_update_itself
         )
-        self.battery_full: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BATTERY_FULL,
-            value_calc_fn=ValueCalc.get_battery_full,
+        self.battery_full: Final[BatteryFullReadState] = BatteryFullReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            ignore_none=False,
+            can_update_itself=can_update_itself
         )
-        self.battery_charging: Final[ReadState[bool]] = self._create_and_register_state(
-            ReadStateName.BATTERY_CHARGING,
-            value_calc_fn=ValueCalc.battery_charging,
+        self.battery_charging: Final[BatteryChargingReadState] = BatteryChargingReadState(
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            ignore_none=False,
+            can_update_itself=can_update_itself
         )
-        self.battery: Final[ReadState[Battery]] = self._create_and_register_state(
-            ReadStateName.BATTERY,
-            value_calc_fn=ValueCalc.get_battery,
+        self.battery: Final[BatteryReadState] = BatteryReadState(
+            depends_on=(self.battery_level_percentage, self.battery_full, self.battery_charging),
             in_report_lockable=self._in_report_lockable,
             enforce_update=enforce_update,
-            can_update_itself=can_update_itself,
-            ignore_none=False,
-            depends_on=[self.battery_level_percentage, self.battery_full, self.battery_charging],
-            compare_fn=ValueCompare.compare_battery
+            can_update_itself=can_update_itself
         )
+        
+        self._register_state(self.left_stick)
+        self._register_state(self.left_stick_x)
+        self._register_state(self.left_stick_y)
+        self._register_state(self.right_stick)
+        self._register_state(self.right_stick_x)
+        self._register_state(self.right_stick_y)
+        self._register_state(self.gyroscope)
+        self._register_state(self.gyroscope_x)
+        self._register_state(self.gyroscope_y)
+        self._register_state(self.gyroscope_z)
+        self._register_state(self.accelerometer)
+        self._register_state(self.accelerometer_x)
+        self._register_state(self.accelerometer_y)
+        self._register_state(self.accelerometer_z)
+        self._register_state(self.orientation)
+        self._register_state(self.dpad)
+        self._register_state(self.btn_up)
+        self._register_state(self.btn_left)
+        self._register_state(self.btn_down)
+        self._register_state(self.btn_right)
+        self._register_state(self.btn_square)
+        self._register_state(self.btn_cross)
+        self._register_state(self.btn_circle)
+        self._register_state(self.btn_triangle)
+        self._register_state(self.btn_l1)
+        self._register_state(self.btn_r1)
+        self._register_state(self.btn_l2)
+        self._register_state(self.btn_r2)
+        self._register_state(self.btn_create)
+        self._register_state(self.btn_options)
+        self._register_state(self.btn_l3)
+        self._register_state(self.btn_r3)
+        self._register_state(self.btn_ps)
+        self._register_state(self.btn_touchpad)
+        self._register_state(self.btn_mute)
+        self._register_state(self.touch_finger_1_active)
+        self._register_state(self.touch_finger_1_id)
+        self._register_state(self.touch_finger_1_x)
+        self._register_state(self.touch_finger_1_y)
+        self._register_state(self.touch_finger_1)
+        self._register_state(self.touch_finger_2_active)
+        self._register_state(self.touch_finger_2_id)
+        self._register_state(self.touch_finger_2_x)
+        self._register_state(self.touch_finger_2_y)
+        self._register_state(self.touch_finger_2)
+        self._register_state(self.left_trigger_value)
+        self._register_state(self.left_trigger_feedback_active)
+        self._register_state(self.left_trigger_feedback_value)
+        self._register_state(self.left_trigger_feedback)
+        self._register_state(self.right_trigger_value)
+        self._register_state(self.right_trigger_feedback_active)
+        self._register_state(self.right_trigger_feedback_value)
+        self._register_state(self.right_trigger_feedback)
+        self._register_state(self.battery_level_percentage)
+        self._register_state(self.battery_full)
+        self._register_state(self.battery_charging)
+        self._register_state(self.battery)
 
     # #################### PRIVATE #######################
-
-    def _create_and_register_state(
-            self,
-
-            # BASE
-            name: ReadStateName,
-            value: StateValue = None,
-            default_value: StateValue = None,
-            ignore_none: bool = True,
-            mapped_to_raw_fn: MapFn = None,
-            raw_to_mapped_fn: MapFn = None,
-            compare_fn: CompareFn[StateValue] = None,
-
-            # READ STATES
-            value_calc_fn: StateValueFn = None,
-            in_report_lockable: Lockable[InReport] = None,
-            enforce_update: bool = False,
-            can_update_itself: bool = True,
-            depends_on: list[ReadState[Any]] = None,
-            is_dependency_of: list[ReadState[Any]] = None,
-            mapped_min_max_values: list[Number] = None,
-            middle_deadzone: Number = None,
-            deadzone: Number = None,
-            threshold: int = None,
-            **kwargs
-    ) -> ReadState[StateValue]:
-
-        check_value_restrictions(
-            name=str(name),
-            mapped_min_max_values=mapped_min_max_values,
-            middle_deadzone=middle_deadzone,
-            deadzone=deadzone,
-            threshold=threshold,
-        )
-
-        state: ReadState[StateValue] = ReadState[StateValue](
-            # BASE
-            name=name,
-            value=value,
-            default_value=default_value,
-            ignore_none=ignore_none,
-            mapped_to_raw_fn=mapped_to_raw_fn,
-            raw_to_mapped_fn=raw_to_mapped_fn,
-            compare_fn=partial(compare_fn, **kwargs) if compare_fn is not None else None,
-            # READ STATE
-            enforce_update=enforce_update,
-            value_calc_fn=value_calc_fn,
-            can_update_itself=can_update_itself,
-            in_report_lockable=in_report_lockable,
-            depends_on=depends_on,
-            is_dependency_of=is_dependency_of,
-        )
-        self._register_state(name, state)
-        return state
 
     def _handle_state(
             self,
@@ -661,13 +522,11 @@ class ReadStates(BaseStates):
         self._update_emitter.on(self._EVENT_UPDATE, callback)
 
     def once_updated(self, callback: Callable[[], None]) -> None:
-        self._update_emitter.once(self._EVENT_UPDATE, callback)
+        self._update_emitter.once(self._EVENT_UPDATE, callback) # type: ignore
 
     def update(self, in_report: InReport, connection_type: ConnectionType) -> None:
 
         now_timestamp: int = time.perf_counter_ns()
-        diff_timestamp: int = now_timestamp - self._timestamp if self._timestamp is not None else 0
-        # print('diff_timestamp ns', diff_timestamp)
 
         self._timestamp = now_timestamp
         self._in_report_lockable.value = in_report

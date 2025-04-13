@@ -49,7 +49,7 @@ def on_ps_btn_pressed():
 # callback, when unintended error occurs,
 # i.e. physically disconnecting the controller during operation
 # stop program
-def on_error(error):
+def on_error(error: Exception):
     print(f'Opps! an error occured: {error}')
     stop()
 

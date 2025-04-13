@@ -1,4 +1,4 @@
-from typing import Final
+from typing import Final, Any
 
 from dualsense_controller.core.state.State import State
 from dualsense_controller.core.state.mapping.StateValueMapper import StateValueMapper
@@ -8,7 +8,7 @@ from dualsense_controller.core.state.typedef import StateChangeCallback, StateNa
 class BaseStates:
 
     def __init__(self, state_value_mapper: StateValueMapper):
-        self._states_dict: Final[dict[StateName, State]] = {}
+        self._states_dict: Final[dict[StateName, State[Any]]] = {}
         self._state_value_mapper: Final[StateValueMapper] = state_value_mapper
 
     @property
@@ -57,8 +57,8 @@ class BaseStates:
         for state_name, state in self._states_dict.items():
             state.remove_change_listener(callback)
 
-    def _register_state(self, name: StateName, state: State[StateValue]) -> None:
-        self._states_dict[name] = state
+    def _register_state(self, state: State[StateValue]) -> None:
+        self._states_dict[state.name] = state
 
     def _get_state_by_name(self, name: StateName) -> State[StateValue]:
         return self._states_dict[name]

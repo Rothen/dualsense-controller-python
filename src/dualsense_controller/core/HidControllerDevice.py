@@ -3,11 +3,11 @@ from threading import Thread
 from typing import Final
 
 import pyee
+from hidapi_py import HidDevice, HidDeviceInfo, get_all_device_infos
 
 from dualsense_controller.core.core.Lockable import Lockable
 from dualsense_controller.core.enum import ConnectionType, EventType
 from dualsense_controller.core.exception import InvalidDeviceIndexException, InvalidInReportLengthException
-from dualsense_controller.core.hidapi import HidDevice, HidDeviceInfo, get_all_device_infos
 from dualsense_controller.core.log import Log
 from dualsense_controller.core.report.in_report.Bt01InReport import Bt01InReport
 from dualsense_controller.core.report.in_report.Bt31InReport import Bt31InReport

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import warnings
-from typing import Final
+from typing import Final, Callable
+
+from hidapi_py import HidDeviceInfo
 
 from dualsense_controller.api.Properties import Properties
 from dualsense_controller.api.enum import UpdateLevel
@@ -20,10 +22,8 @@ from dualsense_controller.api.property.PlayerLedsProperty import PlayerLedsPrope
 from dualsense_controller.api.property.RumbleProperty import RumbleProperty
 from dualsense_controller.api.property.TouchFingerProperty import TouchFingerProperty
 from dualsense_controller.api.property.TriggerProperty import TriggerProperty
-from dualsense_controller.api.typedef import PropertyChangeCallback
 from dualsense_controller.core.DualSenseControllerCore import DualSenseControllerCore
 from dualsense_controller.core.enum import ConnectionType
-from dualsense_controller.core.hidapi import HidDeviceInfo
 from dualsense_controller.core.state.mapping.enum import StateValueMapping as Mapping
 from dualsense_controller.core.state.typedef import Number
 
@@ -272,7 +272,7 @@ class DualSenseController:
 
         self._microphone_initially_muted: Final[bool] = microphone_initially_muted
 
-    def on_error(self, callback: PropertyChangeCallback):
+    def on_error(self, callback: Callable[[Exception], None]) -> None:
         self._properties.exceptions.on_change(callback)
 
     def wait_until_updated(self) -> None:

@@ -15,7 +15,7 @@ class ValueCompare:
             before: JoyStick | None,
             after: JoyStick,
             deadzone_raw: Number = 0,
-    ) -> CompareResult:
+    ) -> CompareResult[JoyStick]:
 
         if before is None:
             return True, after
@@ -35,7 +35,7 @@ class ValueCompare:
             before: Gyroscope,
             after: Gyroscope,
             threshold_raw: Number = 0
-    ) -> CompareResult:
+    ) -> CompareResult[Gyroscope]:
         if before is None:
             return True, after
         if threshold_raw > 0:
@@ -51,7 +51,7 @@ class ValueCompare:
             before: Accelerometer,
             after: Accelerometer,
             threshold_raw: Number = 0
-    ) -> CompareResult:
+    ) -> CompareResult[Accelerometer]:
         if before is None:
             return True, after
         if threshold_raw > 0:
@@ -66,7 +66,7 @@ class ValueCompare:
     def compare_touch_finger(
             before: TouchFinger,
             after: TouchFinger
-    ) -> CompareResult:
+    ) -> CompareResult[TouchFinger]:
         if before is None:
             return True, after
         changed: bool = after.active != before.active or after.x != before.x or after.y != before.y or after.id != before.id
@@ -76,7 +76,7 @@ class ValueCompare:
     def compare_battery(
             before: Battery,
             after: Battery
-    ) -> CompareResult:
+    ) -> CompareResult[Battery]:
         if before is None:
             return True, after
         changed: bool = (
@@ -91,7 +91,7 @@ class ValueCompare:
             before: Orientation,
             after: Orientation,
             threshold_raw: Number = 0
-    ) -> CompareResult:
+    ) -> CompareResult[Orientation]:
         if before is None:
             return True, after
         if threshold_raw > 0:
@@ -106,7 +106,7 @@ class ValueCompare:
     def compare_trigger_feedback(
             before: TriggerFeedback,
             after: TriggerFeedback
-    ) -> CompareResult:
+    ) -> CompareResult[TriggerFeedback]:
         if before is None:
             return True, after
         changed: bool = after.active != before.active or after.value != before.value
@@ -117,7 +117,7 @@ class ValueCompare:
             before: int | None,
             after: int,
             deadzone_raw: Number = 0,
-    ) -> CompareResult:
+    ) -> CompareResult[int]:
         if before is None:
             return True, after
         if deadzone_raw > 0 and before <= deadzone_raw:

@@ -39,10 +39,10 @@ def _max_val(mapped_min_max_values: list[_Num]) -> _Num:
 
 def check_value_restrictions(
         name: str,
-        mapped_min_max_values: list[_Num] = None,
-        middle_deadzone: _Num = None,
-        deadzone: _Num = None,
-        threshold: _Num = None,
+        mapped_min_max_values: list[_Num] | None = None,
+        middle_deadzone: _Num | None = None,
+        deadzone: _Num | None = None,
+        threshold: _Num | None = None,
 ) -> None:
     if mapped_min_max_values is None:
         return

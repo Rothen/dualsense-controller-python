@@ -1,8 +1,8 @@
 from abc import ABC
 from functools import partial
-from typing import Final, Generic
+from typing import Final, Generic, Callable
 
-from dualsense_controller.api.typedef import PropertyChangeCallback, PropertyType
+from dualsense_controller.api.typedef import PropertyType
 from dualsense_controller.core.state.State import State
 from dualsense_controller.core.state.typedef import Number
 
@@ -12,10 +12,10 @@ class Property(Generic[PropertyType], ABC):
     def __init__(self, state: State[PropertyType]):
         self._state: Final[State[PropertyType]] = state
 
-    def on_change(self, callback: PropertyChangeCallback):
+    def on_change(self, callback: Callable[[PropertyType], None]):
         self._state.on_change(callback)
 
-    def once_change(self, callback: PropertyChangeCallback):
+    def once_change(self, callback: Callable[[PropertyType], None]):
         self._state.once_change(callback)
 
     @property
@@ -28,7 +28,7 @@ class Property(Generic[PropertyType], ABC):
     def _get_last_value(self) -> PropertyType:
         return self._state.last_value
 
-    def _set_value(self, value: Number) -> None:
+    def _set_value(self, value: PropertyType) -> None:
         self._state.value = value
 
 
@@ -51,13 +51,13 @@ class GetSetNumberProperty(Property[Number], ABC):
 
 class BoolProperty(Property[bool], ABC):
 
-    def _on_true(self, callback: PropertyChangeCallback):
+    def _on_true(self, callback: Callable[[], None]):
         self.on_change(partial(self._on_changed, callback, True))
 
-    def _on_false(self, callback: PropertyChangeCallback):
+    def _on_false(self, callback: Callable[[], None]):
         self.on_change(partial(self._on_changed, callback, False))
 
     @staticmethod
-    def _on_changed(callback: PropertyChangeCallback, expected_value: bool, actual_value: bool):
+    def _on_changed(callback: Callable[[], None], expected_value: bool, actual_value: bool):
         if expected_value == actual_value:
             callback()

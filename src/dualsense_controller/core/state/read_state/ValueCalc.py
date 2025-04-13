@@ -1,6 +1,6 @@
 import math
 
-from dualsense_controller.core.report.in_report import InReport
+from dualsense_controller.core.report.in_report.InReport import InReport
 from dualsense_controller.core.state.State import State
 from dualsense_controller.core.state.read_state.value_type import Accelerometer, Battery, TriggerFeedback, Gyroscope, \
     JoyStick, \
@@ -143,7 +143,7 @@ class ValueCalc:
         return bool(in_report.buttons_1 & 0x10)
 
     @classmethod
-    def btn_options(cls, in_report: InReport) -> bool:
+    def get_btn_options(cls, in_report: InReport) -> bool:
         return bool(in_report.buttons_1 & 0x20)
 
     @classmethod

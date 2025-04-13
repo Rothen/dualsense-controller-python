@@ -2,21 +2,15 @@ from __future__ import annotations
 
 import time
 from threading import Lock
-from typing import Final, Generic
+from typing import Final, Generic, Any
 
 from dualsense_controller.core.core.Lockable import Lockable
 from dualsense_controller.core.state.StateValueCallbackManager import StateValueCallbackManager
-from dualsense_controller.core.state.mapping.typedef import MapFn
+from dualsense_controller.core.state.mapping.typedef import MapFn, empty_map_fn
 from dualsense_controller.core.state.typedef import CompareFn, CompareResult, StateChangeCallback, StateName, \
-    StateValue
-
+    StateValue, default_compare_fn
 
 class State(Generic[StateValue]):
-
-    @staticmethod
-    def _compare(before: StateValue, after: StateValue) -> CompareResult:
-        return (True, after) if before != after else (False, after)
-
     def __repr__(self) -> str:
         return f'State[{type(self._value_raw).__name__}]({self.name}: {self._value_raw} -> {self.value})'
 
@@ -92,16 +86,16 @@ class State(Generic[StateValue]):
             value: StateValue = None,
             default_value: StateValue = None,
             ignore_none: bool = True,
-            mapped_to_raw_fn: MapFn = None,
-            raw_to_mapped_fn: MapFn = None,
-            compare_fn: CompareFn = None,
+            mapped_to_raw_fn: MapFn = empty_map_fn,
+            raw_to_mapped_fn: MapFn = empty_map_fn,
+            compare_fn: CompareFn[StateValue] = default_compare_fn,
             disable_change_detection: bool = False,
     ):
         # CONST
         self.name: Final[StateName] = name
         self._lock: Final[Lock] = Lock()
         self._callback_manager: Final[StateValueCallbackManager[StateValue]] = StateValueCallbackManager(name)
-        self._compare_fn: Final[CompareFn] = compare_fn if compare_fn is not None else State._compare
+        self._compare_fn: Final[CompareFn[StateValue]] = compare_fn
         self._mapped_to_raw_fn: Final[MapFn] = mapped_to_raw_fn
         self._raw_to_mapped_fn: Final[MapFn] = raw_to_mapped_fn
         self._ignore_none: Final[bool] = ignore_none
@@ -138,7 +132,7 @@ class State(Generic[StateValue]):
             trigger_change_on_changed: bool = True,
     ) -> None:
         value_raw: StateValue | None = (
-            value_mapped if self._mapped_to_raw_fn is None else self._mapped_to_raw_fn(value_mapped)
+            self._mapped_to_raw_fn(value_mapped)
         )
         # print(f'{self.name}: {value_mapped} -> {raw_val}')
         self._set_value_raw(value_raw, trigger_change_on_changed=trigger_change_on_changed)
